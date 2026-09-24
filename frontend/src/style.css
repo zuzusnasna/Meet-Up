@@ -388,3 +388,85 @@ button {
     max-height: none;
   }
 }
+
+
+/* 길찾기 팝업 */
+.route-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.route-modal-content {
+  width: min(420px, 100%);
+  padding: 28px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+}
+
+.route-modal-content h3 {
+  margin: 0 0 24px;
+  font-size: 22px;
+}
+
+.route-modal-content p {
+  margin: 0 0 18px;
+  line-height: 1.6;
+}
+
+.route-modal-content p strong {
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
+.transport-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 24px 0;
+}
+
+.transport-buttons button {
+  min-height: 76px;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 15px;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.transport-buttons button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.1);
+}
+
+.route-modal-content > button {
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-radius: 10px;
+  background: #f1f1f1;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+@media (max-width: 480px) {
+  .route-modal-content {
+    padding: 22px;
+  }
+
+  .transport-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .transport-buttons button {
+    min-height: 52px;
+  }
+}
