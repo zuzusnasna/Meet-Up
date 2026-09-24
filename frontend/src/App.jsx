@@ -56,6 +56,7 @@ function App() {
   const [roomInput, setRoomInput] = useState("");
   const [currentRoom, setCurrentRoom] = useState(null);
   const [roomLoading, setRoomLoading] = useState(false);
+  const [inviteCopied, setInviteCopied] = useState(false);
   const [participants, setParticipants] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -100,11 +101,35 @@ function App() {
     loadCurrentUser();
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const invitedRoomId = Number(params.get("roomId"));
+
+    if (invitedRoomId) {
+      setRoomId(invitedRoomId);
+      localStorage.setItem("meetupRoomId", invitedRoomId);
+      window.history.replaceState({}, "", "/");
+    }
+  }, []);
+
   const userId = currentUser?.userId ?? null;
 
   const logout = () => {
     localStorage.removeItem("meetupRoomId");
     window.location.href = "/api/auth/logout/kakao";
+  };
+
+  const copyInviteLink = async () => {
+    const inviteUrl = window.location.origin + "/?roomId=" + roomId;
+
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setInviteCopied(true);
+      setTimeout(() => setInviteCopied(false), 2000);
+    } catch (error) {
+      console.error(error);
+      alert("초대 링크 복사에 실패했습니다.");
+    }
   };
 
   const loadLocations = async () => {
@@ -807,6 +832,9 @@ function App() {
         </div>
         <div className="room-header-actions">
           <span>{currentUser.name || currentUser.email || "사용자"} · 방 ID: {roomId}</span>
+          <button onClick={copyInviteLink}>
+            {inviteCopied ? "복사 완료!" : "🔗 초대 링크"}
+          </button>
           <button
             onClick={() => {
               localStorage.removeItem("meetupRoomId");
