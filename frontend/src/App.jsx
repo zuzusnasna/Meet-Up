@@ -5,9 +5,7 @@ const KAKAO_JS_KEY = import.meta.env.VITE_KAKAO_JS_KEY;
 let kakaoMapsPromise;
 
 function loadKakaoMaps() {
-  if (kakaoMapsPromise) {
-    return kakaoMapsPromise;
-  }
+  if (kakaoMapsPromise) return kakaoMapsPromise;
 
   kakaoMapsPromise = new Promise((resolve, reject) => {
     if (window.kakao?.maps) {
@@ -16,7 +14,6 @@ function loadKakaoMaps() {
     }
 
     const script = document.createElement("script");
-
     script.src =
       "https://dapi.kakao.com/v2/maps/sdk.js?appkey=" +
       encodeURIComponent(KAKAO_JS_KEY) +
@@ -24,10 +21,9 @@ function loadKakaoMaps() {
 
     script.onload = () => {
       if (!window.kakao?.maps) {
-        reject(new Error("Kakao Maps SDK가 로드되었지만 maps 객체를 찾을 수 없습니다."));
+        reject(new Error("Kakao Maps SDK를 찾을 수 없습니다."));
         return;
       }
-
       window.kakao.maps.load(resolve);
     };
 
@@ -61,10 +57,7 @@ function App() {
   const loadCandidates = async () => {
     try {
       const response = await fetch("/api/place-candidates/room/" + roomId);
-
-      if (!response.ok) {
-        throw new Error("후보 장소 조회에 실패했습니다.");
-      }
+      if (!response.ok) throw new Error("후보 장소 조회에 실패했습니다.");
 
       const data = await response.json();
       setCandidates(data);
@@ -74,13 +67,9 @@ function App() {
           const voteResponse = await fetch(
             "/api/votes/place/" + candidate.placeId
           );
-
-          if (!voteResponse.ok) {
-            throw new Error("투표 수 조회에 실패했습니다.");
-          }
+          if (!voteResponse.ok) throw new Error("투표 수 조회에 실패했습니다.");
 
           const votes = await voteResponse.json();
-
           return [candidate.placeId, votes.length];
         })
       );
@@ -104,9 +93,7 @@ function App() {
         "/api/kakao/places?query=" + encodeURIComponent(keyword)
       );
 
-      if (!response.ok) {
-        throw new Error("장소 검색에 실패했습니다.");
-      }
+      if (!response.ok) throw new Error("장소 검색에 실패했습니다.");
 
       const data = await response.json();
       setPlaces(data.documents ?? []);
@@ -149,18 +136,13 @@ function App() {
     try {
       const response = await fetch("/api/place-candidates", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody),
       });
 
-      if (!response.ok) {
-        throw new Error("후보 장소 등록에 실패했습니다.");
-      }
+      if (!response.ok) throw new Error("후보 장소 등록에 실패했습니다.");
 
       const savedPlace = await response.json();
-
       alert(savedPlace.placeName + " 후보 등록 완료!");
       setSelectedPlace(null);
       await loadCandidates();
@@ -176,13 +158,8 @@ function App() {
     try {
       const response = await fetch("/api/votes", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          placeId,
-          userId,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ placeId, userId }),
       });
 
       if (!response.ok) {
@@ -212,7 +189,6 @@ function App() {
           center: new window.kakao.maps.LatLng(37.5665, 126.978),
           level: 5,
         });
-
         setMap(kakaoMap);
       })
       .catch((error) => {
@@ -231,10 +207,7 @@ function App() {
         Number(place.x)
       );
 
-      const marker = new window.kakao.maps.Marker({
-        map,
-        position,
-      });
+      const marker = new window.kakao.maps.Marker({ map, position });
 
       const infowindow = new window.kakao.maps.InfoWindow({
         content: `<div class="info-window">${place.place_name || place.placeName}</div>`,
@@ -262,7 +235,13 @@ function App() {
 
   return (
     <div className="app">
-      <h1>Meet-Up</h1>
+      <header className="app-header">
+        <div>
+          <p className="eyebrow">LOCATION · VOTE · MEET</p>
+          <h1>Meet-Up</h1>
+          <p>함께 만날 장소를 검색하고 후보를 정해보세요.</p>
+        </div>
+      </header>
 
       <div className="search-box">
         <input
@@ -279,71 +258,98 @@ function App() {
       <div className="content">
         <div ref={mapRef} className="map" />
 
-        <div className="place-list">
-          <h2>검색 결과</h2>
-
-          {places.map((place) => {
-            const isSelected = selectedPlace?.id === place.id;
-
-            return (
-              <button
-                className={`place-item ${isSelected ? "selected" : ""}`}
-                key={place.id}
-                onClick={() => selectPlace(place)}
-              >
-                <strong>
-                  {place.place_name || place.placeName || "장소명 없음"}
-                </strong>
-                <span>
-                  {place.road_address_name ||
-                    place.roadAddressName ||
-                    place.address_name ||
-                    place.addressName}
-                </span>
-                {place.phone && <span>{place.phone}</span>}
-              </button>
-            );
-          })}
-
-          {selectedPlace && (
-            <div className="selected-place">
-              <strong>
-                {selectedPlace.place_name || selectedPlace.placeName}
-              </strong>
-              <button onClick={saveCandidate}>이 장소를 후보로 등록</button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <section className="candidate-section">
-        <h2>모임 장소 후보</h2>
-
-        {candidates.length === 0 ? (
-          <p>등록된 후보 장소가 없습니다.</p>
-        ) : (
-          <div className="candidate-list">
-            {candidates.map((candidate) => (
-              <div className="candidate-item" key={candidate.placeId}>
-                <div className="candidate-info">
-                  <strong>{candidate.placeName}</strong>
-                  <span>{candidate.address}</span>
-                  <span>현재 투표: {voteCounts[candidate.placeId] ?? 0}표</span>
-                </div>
-
-                <button
-                  onClick={() => vote(candidate.placeId)}
-                  disabled={votingPlaceId === candidate.placeId}
-                >
-                  {votingPlaceId === candidate.placeId
-                    ? "투표 중..."
-                    : "투표하기"}
-                </button>
+        <aside className="sidebar">
+          <section className="panel search-panel">
+            <div className="panel-title">
+              <div>
+                <h2>검색 결과</h2>
+                <span>{places.length}개의 장소</span>
               </div>
-            ))}
-          </div>
-        )}
-      </section>
+            </div>
+
+            <div className="place-list">
+              {places.length === 0 ? (
+                <div className="empty-state">
+                  <span>📍</span>
+                  <p>장소를 검색해보세요.</p>
+                </div>
+              ) : (
+                places.map((place) => {
+                  const isSelected = selectedPlace?.id === place.id;
+
+                  return (
+                    <button
+                      className={`place-item ${isSelected ? "selected" : ""}`}
+                      key={place.id}
+                      onClick={() => selectPlace(place)}
+                    >
+                      <strong>
+                        {place.place_name || place.placeName || "장소명 없음"}
+                      </strong>
+                      <span>
+                        {place.road_address_name ||
+                          place.roadAddressName ||
+                          place.address_name ||
+                          place.addressName}
+                      </span>
+                      {place.phone && <span>{place.phone}</span>}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            {selectedPlace && (
+              <div className="selected-place">
+                <div>
+                  <span className="selected-label">선택한 장소</span>
+                  <strong>
+                    {selectedPlace.place_name || selectedPlace.placeName}
+                  </strong>
+                </div>
+                <button onClick={saveCandidate}>+ 후보로 등록</button>
+              </div>
+            )}
+          </section>
+
+          <section className="panel candidate-panel">
+            <div className="panel-title">
+              <div>
+                <h2>모임 장소 후보</h2>
+                <span>{candidates.length}개 후보</span>
+              </div>
+            </div>
+
+            {candidates.length === 0 ? (
+              <div className="empty-state">
+                <span>🗳️</span>
+                <p>검색한 장소를 후보로 등록하세요.</p>
+              </div>
+            ) : (
+              <div className="candidate-list">
+                {candidates.map((candidate) => (
+                  <div className="candidate-item" key={candidate.placeId}>
+                    <div className="candidate-info">
+                      <strong>{candidate.placeName}</strong>
+                      <span>{candidate.address}</span>
+                      <b>현재 {voteCounts[candidate.placeId] ?? 0}표</b>
+                    </div>
+
+                    <button
+                      onClick={() => vote(candidate.placeId)}
+                      disabled={votingPlaceId === candidate.placeId}
+                    >
+                      {votingPlaceId === candidate.placeId
+                        ? "..."
+                        : "투표"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        </aside>
+      </div>
     </div>
   );
 }
