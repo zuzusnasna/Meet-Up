@@ -541,6 +541,25 @@ function App() {
             )}
           </section>
         </aside>
+        {routeTarget && (
+          <div className="route-modal">
+            <div className="route-modal-content">
+              <h3>🗺️ 길찾기</h3>
+              <p><strong>출발지</strong><br />{locations.find((location) => location.userId === userId)?.address || "내 출발지를 먼저 등록해주세요."}</p>
+              <p><strong>목적지</strong><br />{routeTarget.placeName}</p>
+              <div className="transport-buttons">
+                <button className={transportMode === "transit" ? "selected" : ""} onClick={() => setTransportMode("transit")}>🚇 대중교통</button>
+                <button className={transportMode === "car" ? "selected" : ""} onClick={() => setTransportMode("car")}>🚗 자동차</button>
+                <button className={transportMode === "walk" ? "selected" : ""} onClick={() => setTransportMode("walk")}>🚶 도보</button>
+              </div>
+              {transportMode && (
+                <p>선택한 이동수단: <strong>{transportMode === "transit" ? "대중교통" : transportMode === "car" ? "자동차" : "도보"}</strong><br />실제 길찾기 결과는 다음 단계에서 연결합니다.</p>
+              )}
+              <button onClick={() => setRouteTarget(null)}>닫기</button>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
