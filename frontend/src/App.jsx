@@ -58,6 +58,8 @@ function App() {
   const [currentRoom, setCurrentRoom] = useState(null);
   const [roomLoading, setRoomLoading] = useState(false);
   const [participants, setParticipants] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [candidates, setCandidates] = useState([]);
   const [voteCounts, setVoteCounts] = useState({});
   const [votingPlaceId, setVotingPlaceId] = useState(null);
@@ -75,6 +77,31 @@ function App() {
   const [memoModal, setMemoModal] = useState(null);
   const [memoContent, setMemoContent] = useState("");
   const [memoType, setMemoType] = useState("GENERAL");
+
+  const loadCurrentUser = async () => {
+    try {
+      const response = await fetch("/api/auth/me");
+
+      if (!response.ok) {
+        setCurrentUser(null);
+        return;
+      }
+
+      const user = await response.json();
+      setCurrentUser(user);
+    } catch (error) {
+      console.error(error);
+      setCurrentUser(null);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCurrentUser();
+  }, []);
+
+  const userId = currentUser?.userId ?? null;
 
   const loadLocations = async () => {
     if (!roomId) return;
@@ -132,6 +159,11 @@ function App() {
   };
 
   const createRoom = async () => {
+    if (!userId) {
+      alert("먼저 로그인해주세요.");
+      return;
+    }
+
     if (!roomName.trim()) {
       alert("모임 이름을 입력하세요.");
       return;
@@ -164,6 +196,11 @@ function App() {
   };
 
   const joinRoom = async () => {
+    if (!userId) {
+      alert("먼저 로그인해주세요.");
+      return;
+    }
+
     const inputId = Number(roomInput);
 
     if (!inputId) {
@@ -676,6 +713,36 @@ function App() {
     }
   }, [map, places, locations, memos]);
 
+  if (authLoading) {
+    return (
+      <div className="room-entry">
+        <div className="room-entry-card">
+          <p>로그인 정보를 확인하는 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="room-entry">
+        <div className="room-entry-card">
+          <p className="eyebrow">LOCATION · VOTE · MEET</p>
+          <h1>Meet-Up</h1>
+          <p className="room-entry-description">
+            소셜 계정으로 로그인하고 모임을 시작하세요.
+          </p>
+
+          <div className="social-login-buttons">
+            <a href="/oauth2/authorization/kakao">🟡 카카오 로그인</a>
+            <a href="/oauth2/authorization/naver">🟢 네이버 로그인</a>
+            <a href="/oauth2/authorization/google">⚪ Google 로그인</a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!roomId) {
     return (
       <div className="room-entry">
@@ -735,7 +802,7 @@ function App() {
           <p>{currentRoom?.roomName || "함께 만날 장소를 검색하고 후보를 정해보세요."}</p>
         </div>
         <div className="room-header-actions">
-          <span>방 ID: {roomId}</span>
+          <span>{currentUser.name || currentUser.email || "사용자"} · 방 ID: {roomId}</span>
           <button
             onClick={() => {
               localStorage.removeItem("meetupRoomId");
