@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,12 +24,29 @@ public class AuthController {
 
     private final UserRepository userRepository;
 
-    @PostMapping("/logout")
-    public void logout(
+    @Value("${kakao.rest-api-key}")
+    private String kakaoRestApiKey;
+
+    @GetMapping("/logout/kakao")
+    public void kakaoLogout(HttpServletResponse response) throws IOException {
+        String logoutRedirectUri =
+                "http://localhost:8080/api/auth/logout/kakao/callback";
+
+        String logoutUrl =
+                "https://kauth.kakao.com/oauth/logout"
+                        + "?client_id=" + URLEncoder.encode(kakaoRestApiKey, StandardCharsets.UTF_8)
+                        + "&logout_redirect_uri=" + URLEncoder.encode(logoutRedirectUri, StandardCharsets.UTF_8);
+
+        response.sendRedirect(logoutUrl);
+    }
+
+    @GetMapping("/logout/kakao/callback")
+    public void kakaoLogoutCallback(
             HttpServletRequest request,
             HttpServletResponse response
-    ) {
+    ) throws IOException {
         new SecurityContextLogoutHandler().logout(request, response, null);
+        response.sendRedirect("http://localhost:5173/");
     }
 
     @GetMapping("/me")
