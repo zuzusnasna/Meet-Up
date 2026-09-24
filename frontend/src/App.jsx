@@ -44,6 +44,8 @@ function loadKakaoMaps() {
 function App() {
   const mapRef = useRef(null);
   const midpointMarkerRef = useRef(null);
+  const stationMarkerRef = useRef(null);
+  const stationInfoWindowRef = useRef(null);
   const [map, setMap] = useState(null);
   const [midpoint, setMidpoint] = useState(null);
   const [nearbyStations, setNearbyStations] = useState([]);
@@ -630,10 +632,15 @@ function App() {
 
     const position = new window.kakao.maps.LatLng(latitude, longitude);
 
-    // 이전에 선택한 역 마커 제거
-    if (midpointMarkerRef.current) {
-      midpointMarkerRef.current.setMap(null);
-      midpointMarkerRef.current = null;
+    // 이전에 선택한 역 마커와 정보창 제거
+    if (stationInfoWindowRef.current) {
+      stationInfoWindowRef.current.close();
+      stationInfoWindowRef.current = null;
+    }
+
+    if (stationMarkerRef.current) {
+      stationMarkerRef.current.setMap(null);
+      stationMarkerRef.current = null;
     }
 
     const marker = new window.kakao.maps.Marker({ map, position });
@@ -644,7 +651,8 @@ function App() {
 
     window.kakao.maps.event.addListener(marker, "click", () => infowindow.open(map, marker));
     infowindow.open(map, marker);
-    midpointMarkerRef.current = marker;
+    stationMarkerRef.current = marker;
+    stationInfoWindowRef.current = infowindow;
     map.setCenter(position);
     map.setLevel(5);
 
@@ -821,6 +829,8 @@ function App() {
       setLocationMarkers([]);
       setMemoMarkers([]);
       midpointMarkerRef.current = null;
+      stationMarkerRef.current = null;
+      stationInfoWindowRef.current = null;
       setMidpoint(null);
       return;
     }
