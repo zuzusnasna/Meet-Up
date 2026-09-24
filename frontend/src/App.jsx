@@ -369,13 +369,13 @@ function App() {
                 ) : weather ? (
                   <>
                     <div className="weather-main">
-                      <strong>{weather.temperature}°C</strong>
-                      <span>{getWeatherText(weather.weatherCode)}</span>
+                      <strong>{weather.temperature_2m}°C</strong>
+                      <span>{getWeatherText(weather.weather_code)}</span>
                     </div>
                     <div className="weather-details">
-                      <span>습도 {weather.humidity}%</span>
+                      <span>습도 {weather.relative_humidity_2m}%</span>
                       <span>강수량 {weather.precipitation}mm</span>
-                      <span>바람 {weather.windSpeed}km/h</span>
+                      <span>바람 {weather.wind_speed_10m}km/h</span>
                     </div>
                   </>
                 ) : (
