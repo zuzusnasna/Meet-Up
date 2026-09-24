@@ -27,11 +27,6 @@ public class KakaoPlaceService {
         try {
             String apiKey = restApiKey == null ? "" : restApiKey.trim();
 
-            System.out.println("========================================");
-            System.out.println("Kakao API Key 존재 여부 = " + !apiKey.isEmpty());
-            System.out.println("Kakao API Key 길이 = " + apiKey.length());
-            System.out.println("========================================");
-
             String encodedQuery =
                     URLEncoder.encode(query, StandardCharsets.UTF_8);
 
