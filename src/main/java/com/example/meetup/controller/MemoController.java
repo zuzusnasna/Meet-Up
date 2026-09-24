@@ -19,9 +19,9 @@ public class MemoController {
         return memoService.save(memo);
     }
 
-    @GetMapping("/room/{roomId}")
-    public List<Memo> findByRoomId(@PathVariable Long roomId) {
-        return memoService.findByRoomId(roomId);
+    @GetMapping("/place/{placeId}")
+    public List<Memo> findByPlaceId(@PathVariable Long placeId) {
+        return memoService.findByPlaceId(placeId);
     }
 
     @DeleteMapping("/{memoId}")
