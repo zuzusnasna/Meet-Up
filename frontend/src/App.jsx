@@ -305,6 +305,7 @@ function App() {
       setMemoContent("");
       setMemoType("GENERAL");
       await loadMemos();
+      await loadCandidates();
     } catch (error) {
       console.error(error);
       alert(error.message || "메모 등록에 실패했습니다.");
