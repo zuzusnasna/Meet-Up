@@ -52,7 +52,6 @@ function App() {
     const savedRoomId = localStorage.getItem("meetupRoomId");
     return savedRoomId ? Number(savedRoomId) : null;
   });
-  const [userId] = useState(1);
   const [roomName, setRoomName] = useState("");
   const [roomInput, setRoomInput] = useState("");
   const [currentRoom, setCurrentRoom] = useState(null);
