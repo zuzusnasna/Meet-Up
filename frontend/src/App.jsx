@@ -57,6 +57,8 @@ function App() {
   const [weatherLoading, setWeatherLoading] = useState(false);
   const [locations, setLocations] = useState([]);
   const [locationMarkers, setLocationMarkers] = useState([]);
+  const [directions, setDirections] = useState({});
+  const [directionsLoading, setDirectionsLoading] = useState(false);
 
   const loadLocations = async () => {
     try {
@@ -70,6 +72,56 @@ function App() {
       alert("출발지를 불러오지 못했습니다.");
     }
   };
+
+  const loadDirections = async () => {
+    if (locations.length === 0 || candidates.length === 0) {
+      setDirections({});
+      return;
+    }
+
+    const origin = locations.find((location) => location.userId === userId);
+
+    if (!origin) {
+      setDirections({});
+      return;
+    }
+
+    setDirectionsLoading(true);
+
+    try {
+      const entries = await Promise.all(
+        candidates.map(async (candidate) => {
+          const params = new URLSearchParams({
+            originLatitude: origin.latitude,
+            originLongitude: origin.longitude,
+            destinationLatitude: candidate.latitude,
+            destinationLongitude: candidate.longitude,
+          });
+
+          const response = await fetch("/api/directions?" + params);
+
+          if (!response.ok) {
+            throw new Error("길찾기 조회에 실패했습니다.");
+          }
+
+          const data = await response.json();
+
+          return [candidate.placeId, data];
+        })
+      );
+
+      setDirections(Object.fromEntries(entries));
+    } catch (error) {
+      console.error(error);
+      setDirections({});
+    } finally {
+      setDirectionsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDirections();
+  }, [locations, candidates]);
 
   const loadCandidates = async () => {
     try {
@@ -515,6 +567,15 @@ function App() {
                       <strong>{candidate.placeName}</strong>
                       <span>{candidate.address}</span>
                       <b>현재 {voteCounts[candidate.placeId] ?? 0}표</b>
+                      {directions[candidate.placeId] && (
+                        <span>
+                          🚗 약 {Math.ceil(directions[candidate.placeId].duration / 60)}분 ·{" "}
+                          {(directions[candidate.placeId].distance / 1000).toFixed(1)}km
+                        </span>
+                      )}
+                      {directionsLoading && !directions[candidate.placeId] && (
+                        <span>🚗 이동시간 계산 중...</span>
+                      )}
                     </div>
 
                     <button
