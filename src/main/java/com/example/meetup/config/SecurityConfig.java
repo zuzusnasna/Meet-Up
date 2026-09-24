@@ -17,7 +17,8 @@ public class SecurityConfig {
                                 "/api/kakao/**",
                                 "/api/place-candidates/**",
                                 "/api/votes/**",
-                                "/api/weather/**"
+                                "/api/weather/**",
+                                "/api/locations/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 );
