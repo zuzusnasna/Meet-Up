@@ -20,7 +20,8 @@ public class SecurityConfig {
                                 "/api/weather/**",
                                 "/api/locations/**",
                                 "/api/tourism/**",
-                                "/api/memos/**"
+                                "/api/memos/**",
+                                "/api/rooms/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 );
