@@ -15,6 +15,17 @@ public class LocationService {
     private final LocationRepository locationRepository;
 
     public Location save(Location location) {
+        Location existingLocation = locationRepository
+                .findByRoomIdAndUserId(location.getRoomId(), location.getUserId())
+                .orElse(null);
+
+        if (existingLocation != null) {
+            existingLocation.setAddress(location.getAddress());
+            existingLocation.setLatitude(location.getLatitude());
+            existingLocation.setLongitude(location.getLongitude());
+            return locationRepository.save(existingLocation);
+        }
+
         location.setCreatedAt(LocalDateTime.now());
         return locationRepository.save(location);
     }
