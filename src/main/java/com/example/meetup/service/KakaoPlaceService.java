@@ -39,7 +39,12 @@ public class KakaoPlaceService {
 
             connection.setRequestProperty(
                     "Authorization",
-                    "KakaoAK " + restApiKey
+                    "KakaoAK " + restApiKey.trim()
+            );
+
+            connection.setRequestProperty(
+                    "Accept",
+                    "application/json"
             );
 
             int statusCode = connection.getResponseCode();
