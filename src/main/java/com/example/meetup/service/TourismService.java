@@ -17,7 +17,6 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -150,42 +149,8 @@ public class TourismService {
             double longitude
     ) {
         try {
-            String urlString =
-                    "https://dapi.kakao.com/v2/local/search/category.json"
-                            + "?category_group_code=FD6"
-                            + "&x=" + longitude
-                            + "&y=" + latitude
-                            + "&radius=2000"
-                            + "&sort=distance";
-
-            HttpURLConnection connection = (HttpURLConnection)
-                    URI.create(urlString).toURL().openConnection();
-
-            connection.setRequestMethod("GET");
-
-            // KakaoPlaceService가 사용하는 인증키를 재사용하기 위해
-            // 기존 장소 검색 기능을 확장하지 않고 별도 호출을 수행합니다.
-            java.lang.reflect.Field keyField =
-                    KakaoPlaceService.class.getDeclaredField("restApiKey");
-            keyField.setAccessible(true);
-            String apiKey = String.valueOf(keyField.get(kakaoPlaceService)).trim();
-
-            connection.setRequestProperty("Authorization", "KakaoAK " + apiKey);
-            connection.setRequestProperty("Accept", "application/json");
-
-            int statusCode = connection.getResponseCode();
-            String responseBody = readResponse(connection, statusCode);
-            connection.disconnect();
-
-            if (statusCode < 200 || statusCode >= 300) {
-                throw new RuntimeException(
-                        "Kakao 맛집 API 요청 실패: HTTP "
-                                + statusCode + " - " + responseBody
-                );
-            }
-
             KakaoPlaceResponse response =
-                    objectMapper.readValue(responseBody, KakaoPlaceResponse.class);
+                    kakaoPlaceService.searchNearbyRestaurants(latitude, longitude);
 
             List<TourismItemDto> items = new ArrayList<>();
 
