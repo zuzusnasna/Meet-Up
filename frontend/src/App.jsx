@@ -43,7 +43,9 @@ function loadKakaoMaps() {
 
 function App() {
   const mapRef = useRef(null);
+  const midpointMarkerRef = useRef(null);
   const [map, setMap] = useState(null);
+  const [midpoint, setMidpoint] = useState(null);
   const [keyword, setKeyword] = useState("스타벅스");
   const [places, setPlaces] = useState([]);
   const [markers, setMarkers] = useState([]);
@@ -580,6 +582,60 @@ function App() {
     }
   };
 
+  const findMidpoint = async () => {
+    if (locations.length < 2) {
+      alert("참여자 2명 이상의 출발지가 등록되어야 중간지점을 정할 수 있습니다.");
+      return;
+    }
+
+    if (!map || !window.kakao?.maps?.services) {
+      alert("지도가 아직 준비되지 않았습니다.");
+      return;
+    }
+
+    const latitude =
+      locations.reduce((sum, location) => sum + Number(location.latitude), 0) /
+      locations.length;
+    const longitude =
+      locations.reduce((sum, location) => sum + Number(location.longitude), 0) /
+      locations.length;
+
+    const position = new window.kakao.maps.LatLng(latitude, longitude);
+
+    if (midpointMarkerRef.current) {
+      midpointMarkerRef.current.setMap(null);
+    }
+
+    const marker = new window.kakao.maps.Marker({ map, position });
+    const geocoder = new window.kakao.maps.services.Geocoder();
+
+    geocoder.coord2Address(longitude, latitude, (result, status) => {
+      let address = "중간 좌표";
+
+      if (status === window.kakao.maps.services.Status.OK && result[0]) {
+        address =
+          result[0].road_address?.address_name ||
+          result[0].address?.address_name ||
+          address;
+      }
+
+      const nextMidpoint = { latitude, longitude, address };
+      setMidpoint(nextMidpoint);
+      midpointMarkerRef.current = marker;
+
+      const infowindow = new window.kakao.maps.InfoWindow({
+        content: '<div class="info-window"><strong>📍 중간지점</strong><br/>' + address + '</div>',
+      });
+
+      window.kakao.maps.event.addListener(marker, "click", () => {
+        infowindow.open(map, marker);
+      });
+
+      infowindow.open(map, marker);
+      map.setCenter(position);
+      map.setLevel(6);
+    });
+  };
   const saveLocation = async () => {
     if (!selectedPlace) {
       alert("먼저 장소를 선택하세요.");
@@ -1049,6 +1105,26 @@ function App() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+            
+            <button
+              onClick={findMidpoint}
+              disabled={locations.length < 2}
+              style={{ width: "100%", marginTop: "10px" }}
+            >
+              📍 중간지점 정하기
+            </button>
+
+            {midpoint && (
+              <div className="selected-place" style={{ marginTop: "10px" }}>
+                <div>
+                  <span className="selected-label">추천 중간지점</span>
+                  <strong>{midpoint.address}</strong>
+                  <span>
+                    위도 {midpoint.latitude.toFixed(6)} · 경도 {midpoint.longitude.toFixed(6)}
+                  </span>
+                </div>
               </div>
             )}
           </section>
