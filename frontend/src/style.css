@@ -226,6 +226,40 @@ button {
   font-size: 13px;
 }
 
+.weather-content {
+  padding: 14px 16px 16px;
+}
+
+.weather-main {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.weather-main strong {
+  font-size: 28px;
+}
+
+.weather-main span {
+  color: #596273;
+  font-weight: 700;
+}
+
+.weather-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  color: #737b89;
+  font-size: 12px;
+}
+
+.weather-loading {
+  padding: 10px 0;
+  color: #8a93a3;
+  font-size: 13px;
+}
+
 .candidate-list {
   display: flex;
   flex-direction: column;
