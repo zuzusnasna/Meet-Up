@@ -49,6 +49,13 @@ function App() {
   const [markers, setMarkers] = useState([]);
   const [selectedPlace, setSelectedPlace] = useState(null);
   const [roomId, setRoomId] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const invitedRoomId = Number(params.get("roomId"));
+
+    if (invitedRoomId) {
+      return invitedRoomId;
+    }
+
     const savedRoomId = localStorage.getItem("meetupRoomId");
     return savedRoomId ? Number(savedRoomId) : null;
   });
@@ -103,12 +110,10 @@ function App() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const invitedRoomId = Number(params.get("roomId"));
 
-    if (invitedRoomId) {
-      setRoomId(invitedRoomId);
-      localStorage.setItem("meetupRoomId", invitedRoomId);
-      window.history.replaceState({}, "", "/");
+    if (params.get("roomId")) {
+      window.history.replaceState({}, "", window.location.pathname);
+      localStorage.setItem("meetupRoomId", roomId);
     }
   }, []);
 
@@ -301,13 +306,18 @@ function App() {
       }
 
       const room = await response.json();
-      setCurrentRoom(room);
 
-      await fetch(
+      const participantResponse = await fetch(
         "/api/rooms/" + roomId + "/participants?userId=" + userId,
         { method: "POST" }
       );
 
+      if (!participantResponse.ok) {
+        throw new Error("모임방 자동 입장에 실패했습니다.");
+      }
+
+      localStorage.setItem("meetupRoomId", room.roomId);
+      setCurrentRoom(room);
       await loadParticipants();
     } catch (error) {
       console.error(error);
