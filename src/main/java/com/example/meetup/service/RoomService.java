@@ -2,6 +2,8 @@ package com.example.meetup.service;
 
 import com.example.meetup.entity.Room;
 import com.example.meetup.entity.RoomParticipant;
+import com.example.meetup.dto.RoomParticipantResponse;
+import com.example.meetup.repository.UserRepository;
 import com.example.meetup.repository.RoomParticipantRepository;
 import com.example.meetup.repository.RoomRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +18,7 @@ public class RoomService {
 
     private final RoomRepository roomRepository;
     private final RoomParticipantRepository roomParticipantRepository;
+    private final UserRepository userRepository;
 
     public Room createRoom(String roomName, Long creatorId) {
         Room room = Room.builder()
@@ -55,7 +58,22 @@ public class RoomService {
                 ));
     }
 
-    public List<RoomParticipant> findParticipants(Long roomId) {
-        return roomParticipantRepository.findByRoomId(roomId);
+    public List<RoomParticipantResponse> findParticipants(Long roomId) {
+        return roomParticipantRepository.findByRoomId(roomId)
+                .stream()
+                .map(participant -> userRepository.findById(participant.getUserId())
+                        .map(user -> new RoomParticipantResponse(
+                                participant.getRoomId(),
+                                participant.getUserId(),
+                                user.getName(),
+                                user.getEmail()
+                        ))
+                        .orElseGet(() -> new RoomParticipantResponse(
+                                participant.getRoomId(),
+                                participant.getUserId(),
+                                null,
+                                null
+                        )))
+                .toList();
     }
 }
