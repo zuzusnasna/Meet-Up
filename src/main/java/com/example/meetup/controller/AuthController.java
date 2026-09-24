@@ -219,65 +219,6 @@ public class AuthController {
 
         return userRepository
                 .findBySocialIdAndProvider(socialId, provider)
-                .orElseGet(() -> {
-                    String name = extractName(provider, attributes);
-                    String email = extractEmail(provider, attributes);
-                    java.time.LocalDateTime now = java.time.LocalDateTime.now();
-
-                    User user = User.builder()
-                            .socialId(socialId)
-                            .provider(provider)
-                            .name(name)
-                            .email(email)
-                            .createdAt(now)
-                            .updatedAt(now)
-                            .build();
-
-                    return userRepository.save(user);
-                });
+                .orElseThrow(() -> new IllegalStateException("로그인 사용자를 찾을 수 없습니다."));
     }
-    private String extractName(String provider, Map<String, Object> attributes) {
-        if ("google".equals(provider)) {
-            return attributes.get("name") == null ? null : String.valueOf(attributes.get("name"));
-        }
-
-        if ("kakao".equals(provider)) {
-            Map<String, Object> account = (Map<String, Object>) attributes.get("kakao_account");
-            if (account != null) {
-                Map<String, Object> profile = (Map<String, Object>) account.get("profile");
-                if (profile != null && profile.get("nickname") != null) {
-                    return String.valueOf(profile.get("nickname"));
-                }
-            }
-        }
-
-        if ("naver".equals(provider)) {
-            Map<String, Object> response = (Map<String, Object>) attributes.get("response");
-            return response == null || response.get("name") == null
-                    ? null : String.valueOf(response.get("name"));
-        }
-
-        return null;
-    }
-
-    private String extractEmail(String provider, Map<String, Object> attributes) {
-        if ("google".equals(provider)) {
-            return attributes.get("email") == null ? null : String.valueOf(attributes.get("email"));
-        }
-
-        if ("kakao".equals(provider)) {
-            Map<String, Object> account = (Map<String, Object>) attributes.get("kakao_account");
-            return account == null || account.get("email") == null
-                    ? null : String.valueOf(account.get("email"));
-        }
-
-        if ("naver".equals(provider)) {
-            Map<String, Object> response = (Map<String, Object>) attributes.get("response");
-            return response == null || response.get("email") == null
-                    ? null : String.valueOf(response.get("email"));
-        }
-
-        return null;
-    }
-
 }
