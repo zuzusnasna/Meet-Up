@@ -15,12 +15,14 @@ public class MemoService {
     private final MemoRepository memoRepository;
 
     public Memo save(Memo memo) {
-        memo.setCreatedAt(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        memo.setCreatedAt(now);
+        memo.setUpdatedAt(now);
         return memoRepository.save(memo);
     }
 
-    public List<Memo> findByRoomId(Long roomId) {
-        return memoRepository.findByRoomId(roomId);
+    public List<Memo> findByPlaceId(Long placeId) {
+        return memoRepository.findByPlaceId(placeId);
     }
 
     public void delete(Long memoId) {
