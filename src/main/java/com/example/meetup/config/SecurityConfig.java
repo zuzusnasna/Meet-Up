@@ -29,6 +29,7 @@ public class SecurityConfig {
                                 "/api/memos/**",
                                 "/api/rooms/**",
                                 "/api/users/**",
+                                "/api/auth/logout",
                                 "/oauth2/**",
                                 "/login/**"
                         ).permitAll()
