@@ -53,25 +53,47 @@ function App() {
   const [markers, setMarkers] = useState([]);
   const [selectedPlace, setSelectedPlace] = useState(null);
   const [roomId] = useState(1);
+  const [userId] = useState(1);
+  const [candidates, setCandidates] = useState([]);
+  const [voteCounts, setVoteCounts] = useState({});
+  const [votingPlaceId, setVotingPlaceId] = useState(null);
+
+  const loadCandidates = async () => {
+    try {
+      const response = await fetch("/api/place-candidates/room/" + roomId);
+
+      if (!response.ok) {
+        throw new Error("후보 장소 조회에 실패했습니다.");
+      }
+
+      const data = await response.json();
+      setCandidates(data);
+
+      const countEntries = await Promise.all(
+        data.map(async (candidate) => {
+          const voteResponse = await fetch(
+            "/api/votes/place/" + candidate.placeId
+          );
+
+          if (!voteResponse.ok) {
+            throw new Error("투표 수 조회에 실패했습니다.");
+          }
+
+          const votes = await voteResponse.json();
+
+          return [candidate.placeId, votes.length];
+        })
+      );
+
+      setVoteCounts(Object.fromEntries(countEntries));
+    } catch (error) {
+      console.error(error);
+      alert("후보 장소를 불러오지 못했습니다.");
+    }
+  };
 
   useEffect(() => {
-    if (!KAKAO_JS_KEY) {
-      console.error("VITE_KAKAO_JS_KEY가 설정되지 않았습니다.");
-      return;
-    }
-
-    loadKakaoMaps()
-      .then(() => {
-        const kakaoMap = new window.kakao.maps.Map(mapRef.current, {
-          center: new window.kakao.maps.LatLng(37.5665, 126.978),
-          level: 5,
-        });
-
-        setMap(kakaoMap);
-      })
-      .catch((error) => {
-        console.error("Kakao 지도 SDK 로딩 실패", error);
-      });
+    loadCandidates();
   }, []);
 
   const searchPlaces = async () => {
@@ -141,11 +163,62 @@ function App() {
 
       alert(savedPlace.placeName + " 후보 등록 완료!");
       setSelectedPlace(null);
+      await loadCandidates();
     } catch (error) {
       console.error(error);
       alert("후보 장소 등록에 실패했습니다.");
     }
   };
+
+  const vote = async (placeId) => {
+    setVotingPlaceId(placeId);
+
+    try {
+      const response = await fetch("/api/votes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          placeId,
+          userId,
+        }),
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "투표에 실패했습니다.");
+      }
+
+      alert("투표가 완료되었습니다.");
+      await loadCandidates();
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "투표에 실패했습니다.");
+    } finally {
+      setVotingPlaceId(null);
+    }
+  };
+
+  useEffect(() => {
+    if (!KAKAO_JS_KEY) {
+      console.error("VITE_KAKAO_JS_KEY가 설정되지 않았습니다.");
+      return;
+    }
+
+    loadKakaoMaps()
+      .then(() => {
+        const kakaoMap = new window.kakao.maps.Map(mapRef.current, {
+          center: new window.kakao.maps.LatLng(37.5665, 126.978),
+          level: 5,
+        });
+
+        setMap(kakaoMap);
+      })
+      .catch((error) => {
+        console.error("Kakao 지도 SDK 로딩 실패", error);
+      });
+  }, []);
 
   useEffect(() => {
     if (!map || !window.kakao?.maps) return;
@@ -242,6 +315,35 @@ function App() {
           )}
         </div>
       </div>
+
+      <section className="candidate-section">
+        <h2>모임 장소 후보</h2>
+
+        {candidates.length === 0 ? (
+          <p>등록된 후보 장소가 없습니다.</p>
+        ) : (
+          <div className="candidate-list">
+            {candidates.map((candidate) => (
+              <div className="candidate-item" key={candidate.placeId}>
+                <div className="candidate-info">
+                  <strong>{candidate.placeName}</strong>
+                  <span>{candidate.address}</span>
+                  <span>현재 투표: {voteCounts[candidate.placeId] ?? 0}표</span>
+                </div>
+
+                <button
+                  onClick={() => vote(candidate.placeId)}
+                  disabled={votingPlaceId === candidate.placeId}
+                >
+                  {votingPlaceId === candidate.placeId
+                    ? "투표 중..."
+                    : "투표하기"}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
