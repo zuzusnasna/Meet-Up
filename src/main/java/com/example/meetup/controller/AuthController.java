@@ -30,17 +30,19 @@ public class AuthController {
     @Value("${kakao.rest-api-key}")
     private String kakaoRestApiKey;
 
+    @GetMapping("/logout")
+    public void logout(
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) throws IOException {
+        new SecurityContextLogoutHandler().logout(request, response, null);
+        response.sendRedirect("http://localhost:5173/");
+    }
+
     @GetMapping("/logout/kakao")
-    public void kakaoLogout(HttpServletResponse response) throws IOException {
-        String logoutRedirectUri =
-                "http://localhost:8080/api/auth/logout/kakao/callback";
-
-        String logoutUrl =
-                "https://kauth.kakao.com/oauth/logout"
-                        + "?client_id=" + URLEncoder.encode(kakaoRestApiKey, StandardCharsets.UTF_8)
-                        + "&logout_redirect_uri=" + URLEncoder.encode(logoutRedirectUri, StandardCharsets.UTF_8);
-
-        response.sendRedirect(logoutUrl);
+    public void kakaoLogout(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        new SecurityContextLogoutHandler().logout(request, response, null);
+        response.sendRedirect("http://localhost:5173/");
     }
 
     @GetMapping("/logout/kakao/callback")
