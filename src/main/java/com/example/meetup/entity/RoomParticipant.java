@@ -3,10 +3,12 @@ package com.example.meetup.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "ROOM_PARTICIPANTS")
+@IdClass(RoomParticipant.RoomParticipantId.class)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -15,13 +17,21 @@ import java.time.LocalDateTime;
 public class RoomParticipant {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "ROOM_ID")
     private Long roomId;
 
-    @Column(name = "USER_ID", nullable = false)
+    @Id
+    @Column(name = "USER_ID")
     private Long userId;
 
     @Column(name = "JOINED_AT")
     private LocalDateTime joinedAt;
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class RoomParticipantId implements Serializable {
+        private Long roomId;
+        private Long userId;
+    }
 }
