@@ -62,6 +62,11 @@ function App() {
   const [nearbyCategory, setNearbyCategory] = useState("EVENT");
   const [nearbyItems, setNearbyItems] = useState([]);
   const [nearbyLoading, setNearbyLoading] = useState(false);
+  const [memos, setMemos] = useState([]);
+  const [memoMarkers, setMemoMarkers] = useState([]);
+  const [memoModal, setMemoModal] = useState(null);
+  const [memoContent, setMemoContent] = useState("");
+  const [memoType, setMemoType] = useState("GENERAL");
 
   const loadLocations = async () => {
     try {
@@ -106,6 +111,7 @@ function App() {
   useEffect(() => {
     loadCandidates();
     loadLocations();
+    loadMemos();
   }, []);
 
   const searchPlaces = async () => {
@@ -237,6 +243,69 @@ function App() {
     loadNearby(candidate, "EVENT");
   };
 
+  const loadMemos = async () => {
+    try {
+      const response = await fetch("/api/memos/room/" + roomId);
+      if (!response.ok) throw new Error("메모 조회에 실패했습니다.");
+      const data = await response.json();
+      setMemos(data);
+    } catch (error) {
+      console.error(error);
+      alert("메모를 불러오지 못했습니다.");
+    }
+  };
+
+  const saveMemo = async () => {
+    if (!memoModal || !memoContent.trim()) {
+      alert("메모 내용을 입력하세요.");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/memos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          roomId,
+          userId,
+          content: memoContent.trim(),
+          memoType,
+          latitude: memoModal.latitude,
+          longitude: memoModal.longitude,
+        }),
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "메모 등록에 실패했습니다.");
+      }
+
+      setMemoModal(null);
+      setMemoContent("");
+      setMemoType("GENERAL");
+      await loadMemos();
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "메모 등록에 실패했습니다.");
+    }
+  };
+
+  const deleteMemo = async (memoId) => {
+    if (!window.confirm("이 메모를 삭제할까요?")) return;
+
+    try {
+      const response = await fetch("/api/memos/" + memoId, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) throw new Error("메모 삭제에 실패했습니다.");
+      await loadMemos();
+    } catch (error) {
+      console.error(error);
+      alert("메모 삭제에 실패했습니다.");
+    }
+  };
+
   const saveLocation = async () => {
     if (!selectedPlace) {
       alert("먼저 장소를 선택하세요.");
@@ -352,6 +421,17 @@ function App() {
           center: new window.kakao.maps.LatLng(37.5665, 126.978),
           level: 5,
         });
+
+        window.kakao.maps.event.addListener(kakaoMap, "click", (mouseEvent) => {
+          const position = mouseEvent.latLng;
+          setMemoModal({
+            latitude: position.getLat(),
+            longitude: position.getLng(),
+          });
+          setMemoContent("");
+          setMemoType("GENERAL");
+        });
+
         setMap(kakaoMap);
       })
       .catch((error) => {
@@ -386,6 +466,35 @@ function App() {
     setLocationMarkers(newLocationMarkers);
 
     markers.forEach((marker) => marker.setMap(null));
+    memoMarkers.forEach((marker) => marker.setMap(null));
+
+    const newMemoMarkers = memos.map((memo) => {
+      const position = new window.kakao.maps.LatLng(
+        Number(memo.latitude),
+        Number(memo.longitude)
+      );
+
+      const marker = new window.kakao.maps.Marker({ map, position });
+
+      const typeText = {
+        GENERAL: "📌 일반",
+        UMBRELLA: "☔ 우산",
+        LATE_FEE: "⏰ 지각비",
+        OTHER: "📍 기타",
+      }[memo.memoType] || "📌 메모";
+
+      const infowindow = new window.kakao.maps.InfoWindow({
+        content: `<div class="info-window"><strong>${typeText}</strong><br/>${memo.content}</div>`,
+      });
+
+      window.kakao.maps.event.addListener(marker, "click", () => {
+        infowindow.open(map, marker);
+      });
+
+      return marker;
+    });
+
+    setMemoMarkers(newMemoMarkers);
 
     const newMarkers = places.map((place) => {
       const position = new window.kakao.maps.LatLng(
@@ -417,7 +526,7 @@ function App() {
         )
       );
     }
-  }, [map, places, locations]);
+  }, [map, places, locations, memos]);
 
   return (
     <div className="app">
@@ -608,6 +717,64 @@ function App() {
             )}
           </section>
         </aside>
+        {memoModal && (
+          <div className="memo-modal">
+            <div className="memo-modal-content">
+              <h3>📍 메모 추가</h3>
+
+              <label>
+                내용
+                <textarea
+                  value={memoContent}
+                  onChange={(event) => setMemoContent(event.target.value)}
+                  placeholder="예: 우산 챙기기"
+                  maxLength={500}
+                  autoFocus
+                />
+              </label>
+
+              <div className="memo-type">
+                <span>종류</span>
+                <div className="memo-type-buttons">
+                  <button
+                    className={memoType === "GENERAL" ? "active" : ""}
+                    onClick={() => setMemoType("GENERAL")}
+                  >
+                    📌 일반
+                  </button>
+                  <button
+                    className={memoType === "UMBRELLA" ? "active" : ""}
+                    onClick={() => setMemoType("UMBRELLA")}
+                  >
+                    ☔ 우산
+                  </button>
+                  <button
+                    className={memoType === "LATE_FEE" ? "active" : ""}
+                    onClick={() => setMemoType("LATE_FEE")}
+                  >
+                    ⏰ 지각비
+                  </button>
+                  <button
+                    className={memoType === "OTHER" ? "active" : ""}
+                    onClick={() => setMemoType("OTHER")}
+                  >
+                    📍 기타
+                  </button>
+                </div>
+              </div>
+
+              <p className="memo-position">
+                위치: {memoModal.latitude.toFixed(6)}, {memoModal.longitude.toFixed(6)}
+              </p>
+
+              <div className="memo-modal-actions">
+                <button onClick={() => setMemoModal(null)}>취소</button>
+                <button onClick={saveMemo}>등록</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {nearbyTarget && (
           <div className="nearby-modal">
             <div className="nearby-modal-content">
@@ -699,6 +866,18 @@ function App() {
                 )}
               </div>
             </div>
+          </div>
+        )}
+
+        {memos.length > 0 && (
+          <div className="memo-list-floating">
+            <strong>📍 지도 메모 {memos.length}개</strong>
+            {memos.map((memo) => (
+              <div className="memo-list-item" key={memo.memoId}>
+                <span>{memo.content}</span>
+                <button onClick={() => deleteMemo(memo.memoId)}>삭제</button>
+              </div>
+            ))}
           </div>
         )}
 
