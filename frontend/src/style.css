@@ -75,3 +75,79 @@ body {
   padding: 8px 12px;
   white-space: nowrap;
 }
+
+.candidate-section {
+  margin-top: 24px;
+  padding: 20px;
+  border: 1px solid #ddd;
+}
+
+.candidate-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.candidate-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+}
+
+.candidate-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.candidate-info span {
+  color: #666;
+  font-size: 14px;
+}
+
+.candidate-item button {
+  flex-shrink: 0;
+  padding: 10px 16px;
+  cursor: pointer;
+}
+
+.candidate-item button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.selected-place {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #ddd;
+}
+
+.selected-place strong {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.selected-place button {
+  padding: 10px 16px;
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .content {
+    grid-template-columns: 1fr;
+  }
+
+  .place-list {
+    height: auto;
+    max-height: 500px;
+  }
+
+  .candidate-item {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
