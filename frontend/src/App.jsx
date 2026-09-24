@@ -747,6 +747,12 @@ function App() {
 
     if (!roomId) {
       console.log("[지도 초기화 중단] roomId가 없습니다.");
+      setMap(null);
+      setMarkers([]);
+      setLocationMarkers([]);
+      setMemoMarkers([]);
+      midpointMarkerRef.current = null;
+      setMidpoint(null);
       return;
     }
 
