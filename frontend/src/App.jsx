@@ -51,6 +51,8 @@ function App() {
   const [keyword, setKeyword] = useState("스타벅스");
   const [places, setPlaces] = useState([]);
   const [markers, setMarkers] = useState([]);
+  const [selectedPlace, setSelectedPlace] = useState(null);
+  const [roomId] = useState(1);
 
   useEffect(() => {
     if (!KAKAO_JS_KEY) {
@@ -86,9 +88,62 @@ function App() {
 
       const data = await response.json();
       setPlaces(data.documents ?? []);
+      setSelectedPlace(null);
     } catch (error) {
       console.error(error);
       alert("장소 검색에 실패했습니다.");
+    }
+  };
+
+  const selectPlace = (place) => {
+    setSelectedPlace(place);
+
+    if (map) {
+      map.setCenter(
+        new window.kakao.maps.LatLng(Number(place.y), Number(place.x))
+      );
+    }
+  };
+
+  const saveCandidate = async () => {
+    if (!selectedPlace) {
+      alert("먼저 장소를 선택하세요.");
+      return;
+    }
+
+    const requestBody = {
+      roomId,
+      placeName: selectedPlace.place_name || selectedPlace.placeName,
+      address:
+        selectedPlace.road_address_name ||
+        selectedPlace.roadAddressName ||
+        selectedPlace.address_name ||
+        selectedPlace.addressName,
+      latitude: Number(selectedPlace.y),
+      longitude: Number(selectedPlace.x),
+      kakaoPlaceId: selectedPlace.id,
+    };
+
+    try {
+      const response = await fetch("/api/place-candidates", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        throw new Error("후보 장소 등록에 실패했습니다.");
+      }
+
+      const savedPlace = await response.json();
+
+      alert(savedPlace.placeName + " 후보 등록 완료!");
+      setSelectedPlace(null);
+    } catch (error) {
+      console.error(error);
+      alert("후보 장소 등록에 실패했습니다.");
     }
   };
 
@@ -109,10 +164,11 @@ function App() {
       });
 
       const infowindow = new window.kakao.maps.InfoWindow({
-        content: `<div class="info-window">${place.placeName}</div>`,
+        content: `<div class="info-window">${place.place_name || place.placeName}</div>`,
       });
 
       window.kakao.maps.event.addListener(marker, "click", () => {
+        setSelectedPlace(place);
         infowindow.open(map, marker);
       });
 
@@ -153,29 +209,37 @@ function App() {
         <div className="place-list">
           <h2>검색 결과</h2>
 
-          {places.map((place) => (
-            <button
-              className="place-item"
-              key={place.id}
-              onClick={() =>
-                map?.setCenter(
-                  new window.kakao.maps.LatLng(
-                    Number(place.y),
-                    Number(place.x)
-                  )
-                )
-              }
-            >
-              <strong>{place.place_name || place.placeName || "장소명 없음"}</strong>
-              <span>
-                {place.road_address_name ||
-                  place.roadAddressName ||
-                  place.address_name ||
-                  place.addressName}
-              </span>
-              {place.phone && <span>{place.phone}</span>}
-            </button>
-          ))}
+          {places.map((place) => {
+            const isSelected = selectedPlace?.id === place.id;
+
+            return (
+              <button
+                className={`place-item ${isSelected ? "selected" : ""}`}
+                key={place.id}
+                onClick={() => selectPlace(place)}
+              >
+                <strong>
+                  {place.place_name || place.placeName || "장소명 없음"}
+                </strong>
+                <span>
+                  {place.road_address_name ||
+                    place.roadAddressName ||
+                    place.address_name ||
+                    place.addressName}
+                </span>
+                {place.phone && <span>{place.phone}</span>}
+              </button>
+            );
+          })}
+
+          {selectedPlace && (
+            <div className="selected-place">
+              <strong>
+                {selectedPlace.place_name || selectedPlace.placeName}
+              </strong>
+              <button onClick={saveCandidate}>이 장소를 후보로 등록</button>
+            </div>
+          )}
         </div>
       </div>
     </div>
