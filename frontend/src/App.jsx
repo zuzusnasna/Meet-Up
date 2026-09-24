@@ -55,8 +55,18 @@ function App() {
 
   const [inviteRoomId] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    const value = Number(params.get("roomId"));
-    return value || null;
+    const urlRoomId = Number(params.get("roomId"));
+
+    if (urlRoomId) {
+      localStorage.setItem("pendingInviteRoomId", urlRoomId);
+      return urlRoomId;
+    }
+
+    const savedInviteRoomId = Number(
+      localStorage.getItem("pendingInviteRoomId")
+    );
+
+    return savedInviteRoomId || null;
   });
   const [roomName, setRoomName] = useState("");
   const [roomInput, setRoomInput] = useState("");
@@ -307,6 +317,7 @@ function App() {
       }
 
       localStorage.setItem("meetupRoomId", room.roomId);
+      localStorage.removeItem("pendingInviteRoomId");
       setRoomId(room.roomId);
       setCurrentRoom(room);
 
