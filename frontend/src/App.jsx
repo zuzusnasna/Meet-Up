@@ -253,6 +253,29 @@ function App() {
     loadNearby(candidate, "EVENT");
   };
 
+  const loadMemos = async () => {
+    try {
+      const memoEntries = await Promise.all(
+        candidates.map(async (candidate) => {
+          const response = await fetch(
+            "/api/memos/place/" + candidate.placeId
+          );
+
+          if (!response.ok) {
+            throw new Error("메모 조회에 실패했습니다.");
+          }
+
+          return response.json();
+        })
+      );
+
+      setMemos(memoEntries.flat());
+    } catch (error) {
+      console.error(error);
+      alert("메모를 불러오지 못했습니다.");
+    }
+  };
+
   const saveMemo = async () => {
     if (!memoModal || !memoContent.trim()) {
       alert("메모 내용을 입력하세요.");
@@ -300,7 +323,7 @@ function App() {
       await loadMemos();
     } catch (error) {
       console.error(error);
-      alert("메모 삭제에 실패했습니다.");
+      alert(error.message || "메모 삭제에 실패했습니다.");
     }
   };
 
