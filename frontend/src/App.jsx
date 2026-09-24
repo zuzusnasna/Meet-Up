@@ -724,7 +724,7 @@ function App() {
       .catch((error) => {
         console.error("[지도 초기화 실패] Kakao 지도 SDK 로딩 실패", error);
       });
-  }, [roomId, map]);
+  }, [roomId, map, currentUser]);
 
   useEffect(() => {
     if (!map || !window.kakao?.maps) return;
