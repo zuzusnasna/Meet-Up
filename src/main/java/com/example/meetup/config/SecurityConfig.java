@@ -16,7 +16,8 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/kakao/**",
                                 "/api/place-candidates/**",
-                                "/api/votes/**"
+                                "/api/votes/**",
+                                "/api/weather/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 );
