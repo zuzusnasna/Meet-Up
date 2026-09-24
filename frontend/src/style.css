@@ -973,3 +973,26 @@ button {
   color: #8a93a3;
   font-size: 11px;
 }
+
+
+.social-login-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.social-login-buttons a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  border-radius: 10px;
+  background: #f5f6f8;
+  color: #20242b;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.social-login-buttons a:hover {
+  transform: translateY(-1px);
+}
