@@ -919,9 +919,9 @@ function App() {
                       <strong>
                         {participant.userId === userId
                           ? "나"
-                          : "참여자 " + participant.userId}
+                          : participant.userName || "참여자 " + participant.userId}
                       </strong>
-                      <span>사용자 ID: {participant.userId}</span>
+                      <span>{participant.email || "사용자 ID: " + participant.userId}</span>
                     </div>
                   </div>
                 ))}
