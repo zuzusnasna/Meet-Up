@@ -2,22 +2,47 @@ import { useEffect, useRef, useState } from "react";
 
 const KAKAO_JS_KEY = import.meta.env.VITE_KAKAO_JS_KEY;
 
+let kakaoMapsPromise;
+
 function loadKakaoMaps() {
-  return new Promise((resolve, reject) => {
+  if (kakaoMapsPromise) {
+    return kakaoMapsPromise;
+  }
+
+  kakaoMapsPromise = new Promise((resolve, reject) => {
     if (window.kakao?.maps) {
       window.kakao.maps.load(resolve);
       return;
     }
 
     const script = document.createElement("script");
+
     script.src =
       "https://dapi.kakao.com/v2/maps/sdk.js?appkey=" +
       encodeURIComponent(KAKAO_JS_KEY) +
       "&libraries=services&autoload=false";
-    script.onload = () => window.kakao.maps.load(resolve);
-    script.onerror = reject;
+
+    script.onload = () => {
+      if (!window.kakao?.maps) {
+        reject(new Error("Kakao Maps SDK가 로드되었지만 maps 객체를 찾을 수 없습니다."));
+        return;
+      }
+
+      window.kakao.maps.load(resolve);
+    };
+
+    script.onerror = () => {
+      reject(
+        new Error(
+          "Kakao Maps SDK 요청에 실패했습니다. JavaScript 키와 localhost 도메인 등록을 확인하세요."
+        )
+      );
+    };
+
     document.head.appendChild(script);
   });
+
+  return kakaoMapsPromise;
 }
 
 function App() {
