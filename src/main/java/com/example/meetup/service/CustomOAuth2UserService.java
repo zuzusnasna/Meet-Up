@@ -45,7 +45,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                         .updatedAt(LocalDateTime.now())
                         .build());
 
-        userRepository.save(user);
+        userRepository.saveAndFlush(user);
 
         return oauth2User;
     }
