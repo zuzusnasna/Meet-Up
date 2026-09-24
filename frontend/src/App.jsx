@@ -259,7 +259,7 @@ function App() {
   };
 
   const loadRoom = async () => {
-    if (!roomId) return;
+    if (!roomId || !userId) return;
 
     try {
       const response = await fetch("/api/rooms/" + roomId);
@@ -285,13 +285,13 @@ function App() {
   };
 
   useEffect(() => {
-    if (!roomId) return;
+    if (!roomId || !userId) return;
 
     loadRoom();
     loadCandidates();
     loadLocations();
     loadParticipants();
-  }, [roomId]);
+  }, [roomId, userId]);
 
   const searchPlaces = async () => {
     if (!keyword.trim()) return;
