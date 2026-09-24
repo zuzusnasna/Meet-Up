@@ -930,3 +930,46 @@ button {
     padding: 28px 22px;
   }
 }
+
+
+.participant-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.participant-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid #edf0f4;
+}
+
+.participant-item:first-child {
+  border-top: 0;
+}
+
+.participant-avatar {
+  display: flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #f1f3f7;
+}
+
+.participant-item > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.participant-item strong {
+  font-size: 13px;
+}
+
+.participant-item span:not(.participant-avatar) {
+  color: #8a93a3;
+  font-size: 11px;
+}
