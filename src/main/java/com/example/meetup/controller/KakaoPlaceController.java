@@ -5,12 +5,22 @@ import com.example.meetup.service.KakaoPlaceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/kakao")
 @RequiredArgsConstructor
 public class KakaoPlaceController {
 
     private final KakaoPlaceService kakaoPlaceService;
+
+    @GetMapping("/subway-stations")
+    public Map<String, Object> searchNearbySubwayStations(
+            @RequestParam double latitude,
+            @RequestParam double longitude
+    ) {
+        return kakaoPlaceService.searchNearbySubwayStations(latitude, longitude);
+    }
 
     // 카카오 장소 검색
     @GetMapping("/places")
