@@ -89,6 +89,17 @@ function App() {
       const data = await response.json();
       setCandidates(data);
 
+      const memoEntries = await Promise.all(
+        data.map(async (candidate) => {
+          const memoResponse = await fetch(
+            "/api/memos/place/" + candidate.placeId
+          );
+          if (!memoResponse.ok) throw new Error("메모 조회에 실패했습니다.");
+          return memoResponse.json();
+        })
+      );
+      setMemos(memoEntries.flat());
+
       const countEntries = await Promise.all(
         data.map(async (candidate) => {
           const voteResponse = await fetch(
@@ -111,7 +122,6 @@ function App() {
   useEffect(() => {
     loadCandidates();
     loadLocations();
-    loadMemos();
   }, []);
 
   const searchPlaces = async () => {
@@ -243,18 +253,6 @@ function App() {
     loadNearby(candidate, "EVENT");
   };
 
-  const loadMemos = async () => {
-    try {
-      const response = await fetch("/api/memos/room/" + roomId);
-      if (!response.ok) throw new Error("메모 조회에 실패했습니다.");
-      const data = await response.json();
-      setMemos(data);
-    } catch (error) {
-      console.error(error);
-      alert("메모를 불러오지 못했습니다.");
-    }
-  };
-
   const saveMemo = async () => {
     if (!memoModal || !memoContent.trim()) {
       alert("메모 내용을 입력하세요.");
@@ -266,7 +264,7 @@ function App() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          roomId,
+          placeId: memoModal.placeId,
           userId,
           content: memoContent.trim(),
           memoType,
@@ -420,16 +418,6 @@ function App() {
         const kakaoMap = new window.kakao.maps.Map(mapRef.current, {
           center: new window.kakao.maps.LatLng(37.5665, 126.978),
           level: 5,
-        });
-
-        window.kakao.maps.event.addListener(kakaoMap, "click", (mouseEvent) => {
-          const position = mouseEvent.latLng;
-          setMemoModal({
-            latitude: position.getLat(),
-            longitude: position.getLng(),
-          });
-          setMemoContent("");
-          setMemoType("GENERAL");
         });
 
         setMap(kakaoMap);
@@ -700,6 +688,20 @@ function App() {
                         >
                           🗺️ 길찾기
                         </button>
+                        <button
+                          onClick={() => {
+                            setMemoModal({
+                              placeId: candidate.placeId,
+                              latitude: candidate.latitude,
+                              longitude: candidate.longitude,
+                              placeName: candidate.placeName,
+                            });
+                            setMemoContent("");
+                            setMemoType("GENERAL");
+                          }}
+                        >
+                          📍 메모
+                        </button>
                       </div>
                     </div>
 
@@ -764,7 +766,7 @@ function App() {
               </div>
 
               <p className="memo-position">
-                위치: {memoModal.latitude.toFixed(6)}, {memoModal.longitude.toFixed(6)}
+                대상 장소: {memoModal.placeName}
               </p>
 
               <div className="memo-modal-actions">
