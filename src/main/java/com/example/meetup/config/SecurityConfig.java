@@ -30,6 +30,8 @@ public class SecurityConfig {
                                 "/api/rooms/**",
                                 "/api/users/**",
                                 "/api/auth/logout",
+                                "/api/auth/logout/kakao",
+                                "/api/auth/logout/kakao/callback",
                                 "/oauth2/**",
                                 "/login/**"
                         ).permitAll()
