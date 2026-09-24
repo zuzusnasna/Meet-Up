@@ -53,6 +53,8 @@ function App() {
   const [candidates, setCandidates] = useState([]);
   const [voteCounts, setVoteCounts] = useState({});
   const [votingPlaceId, setVotingPlaceId] = useState(null);
+  const [weather, setWeather] = useState(null);
+  const [weatherLoading, setWeatherLoading] = useState(false);
 
   const loadCandidates = async () => {
     try {
@@ -98,20 +100,60 @@ function App() {
       const data = await response.json();
       setPlaces(data.documents ?? []);
       setSelectedPlace(null);
+      setWeather(null);
     } catch (error) {
       console.error(error);
       alert("장소 검색에 실패했습니다.");
     }
   };
 
+  const loadWeather = async (place) => {
+    setWeather(null);
+    setWeatherLoading(true);
+
+    try {
+      const response = await fetch(
+        "/api/weather?latitude=" +
+          encodeURIComponent(place.y) +
+          "&longitude=" +
+          encodeURIComponent(place.x)
+      );
+
+      if (!response.ok) {
+        throw new Error("날씨 조회에 실패했습니다.");
+      }
+
+      const data = await response.json();
+      setWeather(data.current ?? null);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setWeatherLoading(false);
+    }
+  };
+
   const selectPlace = (place) => {
     setSelectedPlace(place);
+    loadWeather(place);
 
     if (map) {
       map.setCenter(
         new window.kakao.maps.LatLng(Number(place.y), Number(place.x))
       );
     }
+  };
+
+  const getWeatherText = (code) => {
+    if (code === 0) return "맑음";
+    if ([1, 2, 3].includes(code)) return "구름 많음";
+    if ([45, 48].includes(code)) return "안개";
+    if ([51, 53, 55, 56, 57].includes(code)) return "이슬비";
+    if ([61, 63, 65, 66, 67].includes(code)) return "비";
+    if ([71, 73, 75, 77].includes(code)) return "눈";
+    if ([80, 81, 82].includes(code)) return "소나기";
+    if ([85, 86].includes(code)) return "눈 소나기";
+    if ([95, 96, 99].includes(code)) return "뇌우";
+    return "날씨 정보";
   };
 
   const saveCandidate = async () => {
@@ -311,6 +353,37 @@ function App() {
               </div>
             )}
           </section>
+
+          {selectedPlace && (
+            <section className="panel weather-panel">
+              <div className="panel-title">
+                <div>
+                  <h2>현재 날씨</h2>
+                  <span>선택한 장소 기준</span>
+                </div>
+              </div>
+
+              <div className="weather-content">
+                {weatherLoading ? (
+                  <div className="weather-loading">날씨를 불러오는 중...</div>
+                ) : weather ? (
+                  <>
+                    <div className="weather-main">
+                      <strong>{weather.temperature}°C</strong>
+                      <span>{getWeatherText(weather.weatherCode)}</span>
+                    </div>
+                    <div className="weather-details">
+                      <span>습도 {weather.humidity}%</span>
+                      <span>강수량 {weather.precipitation}mm</span>
+                      <span>바람 {weather.windSpeed}km/h</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="weather-loading">날씨 정보를 가져오지 못했습니다.</div>
+                )}
+              </div>
+            </section>
+          )}
 
           <section className="panel candidate-panel">
             <div className="panel-title">
