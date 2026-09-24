@@ -58,6 +58,10 @@ function App() {
   const [locations, setLocations] = useState([]);
   const [locationMarkers, setLocationMarkers] = useState([]);
   const [routeTarget, setRouteTarget] = useState(null);
+  const [nearbyTarget, setNearbyTarget] = useState(null);
+  const [nearbyCategory, setNearbyCategory] = useState("EVENT");
+  const [nearbyItems, setNearbyItems] = useState([]);
+  const [nearbyLoading, setNearbyLoading] = useState(false);
 
   const loadLocations = async () => {
     try {
@@ -196,6 +200,41 @@ function App() {
       destinationName + "," + routeTarget.latitude + "," + routeTarget.longitude;
 
     window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const loadNearby = async (target, category) => {
+    setNearbyLoading(true);
+    setNearbyItems([]);
+
+    try {
+      const response = await fetch(
+        "/api/tourism?latitude=" +
+          encodeURIComponent(target.latitude) +
+          "&longitude=" +
+          encodeURIComponent(target.longitude) +
+          "&category=" +
+          encodeURIComponent(category)
+      );
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "주변 정보 조회에 실패했습니다.");
+      }
+
+      const data = await response.json();
+      setNearbyItems(data.items ?? []);
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "주변 정보를 불러오지 못했습니다.");
+    } finally {
+      setNearbyLoading(false);
+    }
+  };
+
+  const openNearby = (candidate) => {
+    setNearbyTarget(candidate);
+    setNearbyCategory("EVENT");
+    loadNearby(candidate, "EVENT");
   };
 
   const saveLocation = async () => {
@@ -541,13 +580,18 @@ function App() {
                       <strong>{candidate.placeName}</strong>
                       <span>{candidate.address}</span>
                       <b>현재 {voteCounts[candidate.placeId] ?? 0}표</b>
-                      <button
-                        onClick={() => {
-                          setRouteTarget(candidate);
-                        }}
-                      >
-                        🗺️ 길찾기
-                      </button>
+                      <div className="candidate-actions">
+                        <button onClick={() => openNearby(candidate)}>
+                          🌟 주변 정보
+                        </button>
+                        <button
+                          onClick={() => {
+                            setRouteTarget(candidate);
+                          }}
+                        >
+                          🗺️ 길찾기
+                        </button>
+                      </div>
                     </div>
 
                     <button
@@ -564,6 +608,100 @@ function App() {
             )}
           </section>
         </aside>
+        {nearbyTarget && (
+          <div className="nearby-modal">
+            <div className="nearby-modal-content">
+              <div className="nearby-header">
+                <div>
+                  <h3>🌟 주변 정보</h3>
+                  <p>{nearbyTarget.placeName}</p>
+                </div>
+                <button
+                  className="nearby-close"
+                  onClick={() => setNearbyTarget(null)}
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="nearby-tabs">
+                <button
+                  className={nearbyCategory === "EVENT" ? "active" : ""}
+                  onClick={() => {
+                    setNearbyCategory("EVENT");
+                    loadNearby(nearbyTarget, "EVENT");
+                  }}
+                >
+                  🎪 행사
+                </button>
+                <button
+                  className={nearbyCategory === "TOURIST" ? "active" : ""}
+                  onClick={() => {
+                    setNearbyCategory("TOURIST");
+                    loadNearby(nearbyTarget, "TOURIST");
+                  }}
+                >
+                  🏛️ 관광지
+                </button>
+                <button
+                  className={nearbyCategory === "RESTAURANT" ? "active" : ""}
+                  onClick={() => {
+                    setNearbyCategory("RESTAURANT");
+                    loadNearby(nearbyTarget, "RESTAURANT");
+                  }}
+                >
+                  🍽️ 맛집
+                </button>
+              </div>
+
+              <div className="nearby-list">
+                {nearbyLoading ? (
+                  <div className="nearby-empty">주변 정보를 불러오는 중...</div>
+                ) : nearbyItems.length === 0 ? (
+                  <div className="nearby-empty">
+                    주변 2km 안에 정보가 없습니다.
+                  </div>
+                ) : (
+                  nearbyItems.map((item) => (
+                    <div className="nearby-item" key={item.contentId}>
+                      {item.imageUrl && (
+                        <img
+                          src={item.imageUrl}
+                          alt=""
+                          className="nearby-image"
+                        />
+                      )}
+
+                      <div className="nearby-item-info">
+                        <strong>{item.title}</strong>
+                        {item.address && <span>{item.address}</span>}
+                        {item.phone && <span>{item.phone}</span>}
+
+                        {nearbyCategory === "EVENT" &&
+                          (item.startDate || item.endDate) && (
+                            <span className="nearby-date">
+                              {item.startDate || ""} ~ {item.endDate || ""}
+                            </span>
+                          )}
+
+                        {item.placeUrl && (
+                          <a
+                            href={item.placeUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            지도에서 보기 →
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {routeTarget && (
           <div className="route-modal">
             <div className="route-modal-content">
