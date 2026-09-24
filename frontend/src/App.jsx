@@ -48,8 +48,15 @@ function App() {
   const [places, setPlaces] = useState([]);
   const [markers, setMarkers] = useState([]);
   const [selectedPlace, setSelectedPlace] = useState(null);
-  const [roomId] = useState(1);
+  const [roomId, setRoomId] = useState(() => {
+    const savedRoomId = localStorage.getItem("meetupRoomId");
+    return savedRoomId ? Number(savedRoomId) : null;
+  });
   const [userId] = useState(1);
+  const [roomName, setRoomName] = useState("");
+  const [roomInput, setRoomInput] = useState("");
+  const [currentRoom, setCurrentRoom] = useState(null);
+  const [roomLoading, setRoomLoading] = useState(false);
   const [candidates, setCandidates] = useState([]);
   const [voteCounts, setVoteCounts] = useState({});
   const [votingPlaceId, setVotingPlaceId] = useState(null);
@@ -69,6 +76,8 @@ function App() {
   const [memoType, setMemoType] = useState("GENERAL");
 
   const loadLocations = async () => {
+    if (!roomId) return;
+
     try {
       const response = await fetch("/api/locations/room/" + roomId);
       if (!response.ok) throw new Error("출발지 조회에 실패했습니다.");
@@ -82,6 +91,8 @@ function App() {
   };
 
   const loadCandidates = async () => {
+    if (!roomId) return;
+
     try {
       const response = await fetch("/api/place-candidates/room/" + roomId);
       if (!response.ok) throw new Error("후보 장소 조회에 실패했습니다.");
@@ -119,10 +130,109 @@ function App() {
     }
   };
 
+  const createRoom = async () => {
+    if (!roomName.trim()) {
+      alert("모임 이름을 입력하세요.");
+      return;
+    }
+
+    setRoomLoading(true);
+
+    try {
+      const response = await fetch(
+        "/api/rooms?roomName=" +
+          encodeURIComponent(roomName.trim()) +
+          "&creatorId=" +
+          userId,
+        { method: "POST" }
+      );
+
+      if (!response.ok) throw new Error("모임방 생성에 실패했습니다.");
+
+      const room = await response.json();
+      localStorage.setItem("meetupRoomId", room.roomId);
+      setRoomId(room.roomId);
+      setCurrentRoom(room);
+      setRoomName("");
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "모임방 생성에 실패했습니다.");
+    } finally {
+      setRoomLoading(false);
+    }
+  };
+
+  const joinRoom = async () => {
+    const inputId = Number(roomInput);
+
+    if (!inputId) {
+      alert("모임방 ID를 입력하세요.");
+      return;
+    }
+
+    setRoomLoading(true);
+
+    try {
+      const roomResponse = await fetch("/api/rooms/" + inputId);
+
+      if (!roomResponse.ok) {
+        throw new Error("존재하지 않는 모임방입니다.");
+      }
+
+      const room = await roomResponse.json();
+
+      const participantResponse = await fetch(
+        "/api/rooms/" + inputId + "/participants?userId=" + userId,
+        { method: "POST" }
+      );
+
+      if (!participantResponse.ok) {
+        throw new Error("모임방 입장에 실패했습니다.");
+      }
+
+      localStorage.setItem("meetupRoomId", room.roomId);
+      setRoomId(room.roomId);
+      setCurrentRoom(room);
+      setRoomInput("");
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "모임방 입장에 실패했습니다.");
+    } finally {
+      setRoomLoading(false);
+    }
+  };
+
+  const loadRoom = async () => {
+    if (!roomId) return;
+
+    try {
+      const response = await fetch("/api/rooms/" + roomId);
+
+      if (!response.ok) {
+        localStorage.removeItem("meetupRoomId");
+        setRoomId(null);
+        return;
+      }
+
+      const room = await response.json();
+      setCurrentRoom(room);
+
+      await fetch(
+        "/api/rooms/" + roomId + "/participants?userId=" + userId,
+        { method: "POST" }
+      );
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   useEffect(() => {
+    if (!roomId) return;
+
+    loadRoom();
     loadCandidates();
     loadLocations();
-  }, []);
+  }, [roomId]);
 
   const searchPlaces = async () => {
     if (!keyword.trim()) return;
@@ -540,13 +650,75 @@ function App() {
     }
   }, [map, places, locations, memos]);
 
+  if (!roomId) {
+    return (
+      <div className="room-entry">
+        <div className="room-entry-card">
+          <p className="eyebrow">LOCATION · VOTE · MEET</p>
+          <h1>Meet-Up</h1>
+          <p className="room-entry-description">
+            모임방을 만들거나 기존 모임방에 입장하세요.
+          </p>
+
+          <div className="room-entry-section">
+            <h2>새 모임 만들기</h2>
+            <input
+              value={roomName}
+              onChange={(event) => setRoomName(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") createRoom();
+              }}
+              placeholder="예: 친구들과 서울 모임"
+              maxLength={200}
+            />
+            <button onClick={createRoom} disabled={roomLoading}>
+              {roomLoading ? "처리 중..." : "모임 만들기"}
+            </button>
+          </div>
+
+          <div className="room-entry-divider">
+            <span>또는</span>
+          </div>
+
+          <div className="room-entry-section">
+            <h2>기존 모임방 입장</h2>
+            <input
+              value={roomInput}
+              onChange={(event) => setRoomInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") joinRoom();
+              }}
+              placeholder="모임방 ID를 입력하세요"
+              inputMode="numeric"
+            />
+            <button onClick={joinRoom} disabled={roomLoading}>
+              {roomLoading ? "처리 중..." : "입장하기"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       <header className="app-header">
         <div>
           <p className="eyebrow">LOCATION · VOTE · MEET</p>
           <h1>Meet-Up</h1>
-          <p>함께 만날 장소를 검색하고 후보를 정해보세요.</p>
+          <p>{currentRoom?.roomName || "함께 만날 장소를 검색하고 후보를 정해보세요."}</p>
+        </div>
+        <div className="room-header-actions">
+          <span>방 ID: {roomId}</span>
+          <button
+            onClick={() => {
+              localStorage.removeItem("meetupRoomId");
+              setRoomId(null);
+              setCurrentRoom(null);
+            }}
+          >
+            방 나가기
+          </button>
         </div>
       </header>
 
