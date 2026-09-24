@@ -644,7 +644,6 @@ function App() {
     map.setCenter(position);
     map.setLevel(5);
 
-    setRouteTarget({ placeName: stationName, latitude, longitude });
   };
 
   const findMidpoint = async () => {
@@ -1238,6 +1237,12 @@ function App() {
                           onClick={(event) => {
                             event.stopPropagation();
                             showStationOnMap(station);
+                            setRouteTarget({
+                              placeName:
+                                station.place_name || station.placeName || "지하철역",
+                              latitude: Number(station.y),
+                              longitude: Number(station.x),
+                            });
                           }}
                         >
                           길찾기
