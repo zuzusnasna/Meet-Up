@@ -20,24 +20,27 @@ public class Memo {
     @Column(name = "MEMO_ID")
     private Long memoId;
 
-    @Column(name = "ROOM_ID", nullable = false)
-    private Long roomId;
+    @Column(name = "PLACE_ID", nullable = false)
+    private Long placeId;
 
     @Column(name = "USER_ID", nullable = false)
     private Long userId;
 
-    @Column(name = "CONTENT", nullable = false, length = 500)
+    @Column(name = "CONTENT", nullable = false, length = 1000)
     private String content;
 
-    @Column(name = "MEMO_TYPE", length = 30)
-    private String memoType;
-
-    @Column(name = "LATITUDE", nullable = false)
+    @Column(name = "LATITUDE")
     private BigDecimal latitude;
 
-    @Column(name = "LONGITUDE", nullable = false)
+    @Column(name = "LONGITUDE")
     private BigDecimal longitude;
 
     @Column(name = "CREATED_AT")
     private LocalDateTime createdAt;
+
+    @Column(name = "UPDATED_AT")
+    private LocalDateTime updatedAt;
+
+    @Column(name = "MEMO_TYPE", length = 30)
+    private String memoType;
 }
