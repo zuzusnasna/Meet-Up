@@ -166,8 +166,13 @@ function App() {
                 )
               }
             >
-              <strong>{place.placeName}</strong>
-              <span>{place.roadAddressName || place.addressName}</span>
+              <strong>{place.place_name || place.placeName || "장소명 없음"}</strong>
+              <span>
+                {place.road_address_name ||
+                  place.roadAddressName ||
+                  place.address_name ||
+                  place.addressName}
+              </span>
               {place.phone && <span>{place.phone}</span>}
             </button>
           ))}
