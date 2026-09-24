@@ -49,15 +49,14 @@ function App() {
   const [markers, setMarkers] = useState([]);
   const [selectedPlace, setSelectedPlace] = useState(null);
   const [roomId, setRoomId] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    const invitedRoomId = Number(params.get("roomId"));
-
-    if (invitedRoomId) {
-      return invitedRoomId;
-    }
-
     const savedRoomId = localStorage.getItem("meetupRoomId");
     return savedRoomId ? Number(savedRoomId) : null;
+  });
+
+  const [inviteRoomId] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const value = Number(params.get("roomId"));
+    return value || null;
   });
   const [roomName, setRoomName] = useState("");
   const [roomInput, setRoomInput] = useState("");
@@ -106,15 +105,6 @@ function App() {
 
   useEffect(() => {
     loadCurrentUser();
-  }, []);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-
-    if (params.get("roomId")) {
-      window.history.replaceState({}, "", window.location.pathname);
-      localStorage.setItem("meetupRoomId", roomId);
-    }
   }, []);
 
   const userId = currentUser?.userId ?? null;
@@ -292,6 +282,48 @@ function App() {
       console.error(error);
     }
   };
+
+  const joinRoomById = async (targetRoomId) => {
+    if (!userId || !targetRoomId) return;
+
+    setRoomLoading(true);
+
+    try {
+      const roomResponse = await fetch("/api/rooms/" + targetRoomId);
+
+      if (!roomResponse.ok) {
+        throw new Error("존재하지 않는 모임방입니다.");
+      }
+
+      const room = await roomResponse.json();
+
+      const participantResponse = await fetch(
+        "/api/rooms/" + targetRoomId + "/participants?userId=" + userId,
+        { method: "POST" }
+      );
+
+      if (!participantResponse.ok) {
+        throw new Error("모임방 입장에 실패했습니다.");
+      }
+
+      localStorage.setItem("meetupRoomId", room.roomId);
+      setRoomId(room.roomId);
+      setCurrentRoom(room);
+
+      window.history.replaceState({}, "", window.location.pathname);
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "초대받은 모임방에 입장하지 못했습니다.");
+    } finally {
+      setRoomLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!userId || !inviteRoomId) return;
+
+    joinRoomById(inviteRoomId);
+  }, [userId, inviteRoomId]);
 
   const loadRoom = async () => {
     if (!roomId || !userId) return;
