@@ -57,6 +57,7 @@ function App() {
   const [roomInput, setRoomInput] = useState("");
   const [currentRoom, setCurrentRoom] = useState(null);
   const [roomLoading, setRoomLoading] = useState(false);
+  const [participants, setParticipants] = useState([]);
   const [candidates, setCandidates] = useState([]);
   const [voteCounts, setVoteCounts] = useState({});
   const [votingPlaceId, setVotingPlaceId] = useState(null);
@@ -202,6 +203,25 @@ function App() {
     }
   };
 
+  const loadParticipants = async () => {
+    if (!roomId) return;
+
+    try {
+      const response = await fetch(
+        "/api/rooms/" + roomId + "/participants"
+      );
+
+      if (!response.ok) {
+        throw new Error("참여자 조회에 실패했습니다.");
+      }
+
+      const data = await response.json();
+      setParticipants(data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   const loadRoom = async () => {
     if (!roomId) return;
 
@@ -221,6 +241,8 @@ function App() {
         "/api/rooms/" + roomId + "/participants?userId=" + userId,
         { method: "POST" }
       );
+
+      await loadParticipants();
     } catch (error) {
       console.error(error);
     }
@@ -232,6 +254,7 @@ function App() {
     loadRoom();
     loadCandidates();
     loadLocations();
+    loadParticipants();
   }, [roomId]);
 
   const searchPlaces = async () => {
@@ -793,6 +816,41 @@ function App() {
                   <button onClick={saveLocation}>+ 출발지 등록/변경</button>
                   <button onClick={saveCandidate}>+ 후보 등록</button>
                 </div>
+              </div>
+            )}
+          </section>
+
+          <section className="panel participants-panel">
+            <div className="panel-title">
+              <div>
+                <h2>👥 참여자</h2>
+                <span>{participants.length}명 참여 중</span>
+              </div>
+            </div>
+
+            {participants.length === 0 ? (
+              <div className="empty-state">
+                <span>👤</span>
+                <p>아직 참여자가 없습니다.</p>
+              </div>
+            ) : (
+              <div className="participant-list">
+                {participants.map((participant) => (
+                  <div
+                    className="participant-item"
+                    key={participant.roomId + "-" + participant.userId}
+                  >
+                    <span className="participant-avatar">👤</span>
+                    <div>
+                      <strong>
+                        {participant.userId === userId
+                          ? "나"
+                          : "참여자 " + participant.userId}
+                      </strong>
+                      <span>사용자 ID: {participant.userId}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </section>
