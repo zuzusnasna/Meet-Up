@@ -1,5 +1,7 @@
 package com.example.meetup.service;
 
+import com.example.meetup.dto.KakaoPlaceResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -16,7 +18,15 @@ public class KakaoPlaceService {
     @Value("${kakao.rest-api-key}")
     private String restApiKey;
 
-    public String searchPlace(String query) {
+    private final ObjectMapper objectMapper;
+
+    public KakaoPlaceService(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
+
+    public KakaoPlaceResponse searchPlace(String query) {
+
+        HttpURLConnection connection = null;
 
         try {
             String encodedQuery =
@@ -26,26 +36,17 @@ public class KakaoPlaceService {
                     "https://dapi.kakao.com/v2/local/search/keyword.json?query="
                             + encodedQuery;
 
-            System.out.println("================================");
-            System.out.println("Kakao 요청 URL = " + urlString);
-            System.out.println("API KEY 길이 = " + restApiKey.length());
-            System.out.println("================================");
-
             URL url = new URL(urlString);
 
-            HttpURLConnection connection =
-                    (HttpURLConnection) url.openConnection();
+            connection = (HttpURLConnection) url.openConnection();
 
             connection.setRequestMethod("GET");
-
             connection.setRequestProperty(
                     "Authorization",
                     "KakaoAK " + restApiKey
             );
 
             int statusCode = connection.getResponseCode();
-
-            System.out.println("Kakao 상태 코드 = " + statusCode);
 
             BufferedReader reader;
 
@@ -75,13 +76,24 @@ public class KakaoPlaceService {
 
             reader.close();
 
-            System.out.println("Kakao 응답 = " + response);
+            if (statusCode < 200 || statusCode >= 300) {
+                throw new RuntimeException(
+                        "Kakao API 요청 실패: HTTP " + statusCode
+                                + " - " + response
+                );
+            }
 
-            return response.toString();
+            return objectMapper.readValue(
+                    response.toString(),
+                    KakaoPlaceResponse.class
+            );
 
         } catch (Exception e) {
-            e.printStackTrace();
             throw new RuntimeException("Kakao API 호출 실패", e);
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
         }
     }
 }
