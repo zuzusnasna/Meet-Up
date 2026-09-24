@@ -542,13 +542,16 @@ function App() {
   };
 
   useEffect(() => {
-    if (!KAKAO_JS_KEY) {
-      console.error("VITE_KAKAO_JS_KEY가 설정되지 않았습니다.");
+    if (!roomId || !KAKAO_JS_KEY || !mapRef.current) {
       return;
     }
 
     loadKakaoMaps()
       .then(() => {
+        if (!mapRef.current || map) {
+          return;
+        }
+
         const kakaoMap = new window.kakao.maps.Map(mapRef.current, {
           center: new window.kakao.maps.LatLng(37.5665, 126.978),
           level: 5,
@@ -559,7 +562,7 @@ function App() {
       .catch((error) => {
         console.error("Kakao 지도 SDK 로딩 실패", error);
       });
-  }, []);
+  }, [roomId, map]);
 
   useEffect(() => {
     if (!map || !window.kakao?.maps) return;
