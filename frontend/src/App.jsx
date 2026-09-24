@@ -684,13 +684,32 @@ function App() {
   };
 
   useEffect(() => {
-    if (!roomId || !KAKAO_JS_KEY || !mapRef.current) {
+    console.log("[지도 초기화] roomId =", roomId);
+    console.log("[지도 초기화] KAKAO_JS_KEY 존재 여부 =", Boolean(KAKAO_JS_KEY));
+    console.log("[지도 초기화] mapRef.current =", mapRef.current);
+    console.log("[지도 초기화] map =", map);
+
+    if (!roomId) {
+      console.log("[지도 초기화 중단] roomId가 없습니다.");
+      return;
+    }
+
+    if (!KAKAO_JS_KEY) {
+      console.error("[지도 초기화 중단] VITE_KAKAO_JS_KEY가 없습니다.");
+      return;
+    }
+
+    if (!mapRef.current) {
+      console.log("[지도 초기화 중단] mapRef.current가 없습니다.");
       return;
     }
 
     loadKakaoMaps()
       .then(() => {
+        console.log("[지도 초기화] Kakao Maps SDK 로딩 성공");
+
         if (!mapRef.current || map) {
+          console.log("[지도 초기화 중단] mapRef.current가 없거나 이미 지도가 생성되었습니다.");
           return;
         }
 
@@ -699,10 +718,11 @@ function App() {
           level: 5,
         });
 
+        console.log("[지도 초기화] Kakao 지도 생성 성공");
         setMap(kakaoMap);
       })
       .catch((error) => {
-        console.error("Kakao 지도 SDK 로딩 실패", error);
+        console.error("[지도 초기화 실패] Kakao 지도 SDK 로딩 실패", error);
       });
   }, [roomId, map]);
 
