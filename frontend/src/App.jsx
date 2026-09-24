@@ -614,6 +614,39 @@ function App() {
     }
   };
 
+  const showStationOnMap = (station) => {
+    if (!map || !window.kakao?.maps) {
+      alert("지도가 아직 준비되지 않았습니다.");
+      return;
+    }
+
+    const latitude = Number(station.y);
+    const longitude = Number(station.x);
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      alert("역 위치 정보를 확인할 수 없습니다.");
+      return;
+    }
+
+    const position = new window.kakao.maps.LatLng(latitude, longitude);
+
+    if (midpointMarkerRef.current) midpointMarkerRef.current.setMap(null);
+
+    const marker = new window.kakao.maps.Marker({ map, position });
+    const stationName = station.place_name || station.placeName || "지하철역";
+    const infowindow = new window.kakao.maps.InfoWindow({
+      content: '<div class="info-window"><strong>🚇 ' + stationName + '</strong></div>',
+    });
+
+    window.kakao.maps.event.addListener(marker, "click", () => infowindow.open(map, marker));
+    infowindow.open(map, marker);
+    midpointMarkerRef.current = marker;
+    map.setCenter(position);
+    map.setLevel(5);
+
+    setRouteTarget({ placeName: stationName, latitude, longitude });
+  };
+
   const findMidpoint = async () => {
     if (locations.length < 2) {
       alert("참여자 2명 이상의 출발지가 등록되어야 중간지점을 정할 수 있습니다.");
@@ -1190,7 +1223,7 @@ function App() {
                 ) : (
                   <div className="candidate-list">
                     {nearbyStations.map((station) => (
-                      <div className="candidate-item" key={station.id}>
+                      <div className="candidate-item" key={station.id} onClick={() => showStationOnMap(station)} style={{ cursor: "pointer" }}>
                         <div className="candidate-info">
                           <strong>{station.place_name || station.placeName}</strong>
                           {station.distance && (
@@ -1201,19 +1234,14 @@ function App() {
                             </b>
                           )}
                         </div>
-                        {station.place_url && (
-                          <button
-                            onClick={() =>
-                              window.open(
-                                station.place_url,
-                                "_blank",
-                                "noopener,noreferrer"
-                              )
-                            }
-                          >
-                            지도
-                          </button>
-                        )}
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            showStationOnMap(station);
+                          }}
+                        >
+                          길찾기
+                        </button>
                       </div>
                     ))}
                   </div>
