@@ -630,7 +630,11 @@ function App() {
 
     const position = new window.kakao.maps.LatLng(latitude, longitude);
 
-    if (midpointMarkerRef.current) midpointMarkerRef.current.setMap(null);
+    // 이전에 선택한 역 마커 제거
+    if (midpointMarkerRef.current) {
+      midpointMarkerRef.current.setMap(null);
+      midpointMarkerRef.current = null;
+    }
 
     const marker = new window.kakao.maps.Marker({ map, position });
     const stationName = station.place_name || station.placeName || "지하철역";
