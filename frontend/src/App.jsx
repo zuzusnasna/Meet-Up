@@ -102,6 +102,27 @@ function App() {
 
   const userId = currentUser?.userId ?? null;
 
+  const logout = async () => {
+    try {
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        throw new Error("로그아웃에 실패했습니다.");
+      }
+
+      localStorage.removeItem("meetupRoomId");
+      setCurrentUser(null);
+      setRoomId(null);
+      setCurrentRoom(null);
+      setParticipants([]);
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "로그아웃에 실패했습니다.");
+    }
+  };
+
   const loadLocations = async () => {
     if (!roomId) return;
 
@@ -810,6 +831,9 @@ function App() {
             }}
           >
             방 나가기
+          </button>
+          <button onClick={logout}>
+            로그아웃
           </button>
         </div>
       </header>
