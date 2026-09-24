@@ -8,8 +8,8 @@ import org.springframework.stereotype.Service;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URLEncoder;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 @Service
@@ -18,11 +18,7 @@ public class KakaoPlaceService {
     @Value("${kakao.rest-api-key}")
     private String restApiKey;
 
-    private final ObjectMapper objectMapper;
-
-    public KakaoPlaceService(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
-    }
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public KakaoPlaceResponse searchPlace(String query) {
 
@@ -36,11 +32,11 @@ public class KakaoPlaceService {
                     "https://dapi.kakao.com/v2/local/search/keyword.json?query="
                             + encodedQuery;
 
-            URL url = new URL(urlString);
-
-            connection = (HttpURLConnection) url.openConnection();
+            connection = (HttpURLConnection)
+                    URI.create(urlString).toURL().openConnection();
 
             connection.setRequestMethod("GET");
+
             connection.setRequestProperty(
                     "Authorization",
                     "KakaoAK " + restApiKey
@@ -78,8 +74,10 @@ public class KakaoPlaceService {
 
             if (statusCode < 200 || statusCode >= 300) {
                 throw new RuntimeException(
-                        "Kakao API 요청 실패: HTTP " + statusCode
-                                + " - " + response
+                        "Kakao API 요청 실패: HTTP "
+                                + statusCode
+                                + " - "
+                                + response
                 );
             }
 
