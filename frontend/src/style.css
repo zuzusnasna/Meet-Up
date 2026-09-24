@@ -808,3 +808,125 @@ button {
     width: calc(100% - 20px);
   }
 }
+
+
+/* 모임방 입장 */
+.room-entry {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #f6f7fb;
+}
+
+.room-entry-card {
+  width: min(440px, 100%);
+  padding: 38px;
+  border: 1px solid #e3e7ef;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 20px 50px rgba(31, 41, 55, 0.1);
+}
+
+.room-entry-card h1 {
+  margin: 4px 0 8px;
+  font-size: 34px;
+}
+
+.room-entry-description {
+  margin: 0 0 28px;
+  color: #737b89;
+  font-size: 14px;
+}
+
+.room-entry-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.room-entry-section h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.room-entry-section input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #d9dee8;
+  border-radius: 10px;
+  outline: none;
+  font: inherit;
+}
+
+.room-entry-section input:focus {
+  border-color: #4f6df5;
+  box-shadow: 0 0 0 3px rgba(79, 109, 245, 0.1);
+}
+
+.room-entry-section button {
+  padding: 12px;
+  border-radius: 10px;
+  background: #4f6df5;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.room-entry-section button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.room-entry-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 24px 0;
+  color: #9aa2af;
+  font-size: 12px;
+}
+
+.room-entry-divider::before,
+.room-entry-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #e9ecf2;
+}
+
+.room-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.room-header-actions span {
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #f1f3f7;
+  color: #667080;
+  font-size: 12px;
+}
+
+.room-header-actions button {
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #dfe3eb;
+  color: #667080;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+@media (max-width: 480px) {
+  .room-entry {
+    padding: 16px;
+  }
+
+  .room-entry-card {
+    padding: 28px 22px;
+  }
+}
