@@ -13,7 +13,7 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/kakao/**").permitAll()
+                        .requestMatchers("/api/kakao/**", "/api/place-candidates/**").permitAll()
                         .anyRequest().authenticated()
                 );
 
