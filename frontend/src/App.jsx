@@ -46,6 +46,9 @@ function App() {
   const midpointMarkerRef = useRef(null);
   const [map, setMap] = useState(null);
   const [midpoint, setMidpoint] = useState(null);
+  const [nearbyStations, setNearbyStations] = useState([]);
+  const [nearbyStationRadius, setNearbyStationRadius] = useState(null);
+  const [stationLoading, setStationLoading] = useState(false);
   const [keyword, setKeyword] = useState("스타벅스");
   const [places, setPlaces] = useState([]);
   const [markers, setMarkers] = useState([]);
@@ -582,6 +585,35 @@ function App() {
     }
   };
 
+  const loadNearbyStations = async (latitude, longitude) => {
+    setStationLoading(true);
+    setNearbyStations([]);
+    setNearbyStationRadius(null);
+
+    try {
+      const response = await fetch(
+        "/api/kakao/subway-stations?latitude=" +
+          encodeURIComponent(latitude) +
+          "&longitude=" +
+          encodeURIComponent(longitude)
+      );
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "주변 역 조회에 실패했습니다.");
+      }
+
+      const data = await response.json();
+      setNearbyStations(data.documents ?? []);
+      setNearbyStationRadius(data.radius ?? null);
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "주변 역을 불러오지 못했습니다.");
+    } finally {
+      setStationLoading(false);
+    }
+  };
+
   const findMidpoint = async () => {
     if (locations.length < 2) {
       alert("참여자 2명 이상의 출발지가 등록되어야 중간지점을 정할 수 있습니다.");
@@ -634,6 +666,7 @@ function App() {
       infowindow.open(map, marker);
       map.setCenter(position);
       map.setLevel(6);
+      loadNearbyStations(latitude, longitude);
     });
   };
   const saveLocation = async () => {
@@ -1131,6 +1164,66 @@ function App() {
                     위도 {midpoint.latitude.toFixed(6)} · 경도 {midpoint.longitude.toFixed(6)}
                   </span>
                 </div>
+              </div>
+            )}
+
+            {midpoint && (
+              <div style={{ marginTop: "10px" }}>
+                <div className="panel-title">
+                  <div>
+                    <h2>🚇 주변 지하철역</h2>
+                    <span>
+                      {nearbyStationRadius
+                        ? nearbyStationRadius / 1000 + "km 이내 검색 결과"
+                        : "검색 중"}
+                    </span>
+                  </div>
+                </div>
+
+                {stationLoading ? (
+                  <div className="empty-state">
+                    <span>🚇</span>
+                    <p>주변 역을 찾는 중...</p>
+                  </div>
+                ) : nearbyStations.length === 0 ? (
+                  <div className="empty-state">
+                    <span>🚉</span>
+                    <p>3km 이내에 검색되는 역이 없습니다.</p>
+                  </div>
+                ) : (
+                  <div className="candidate-list">
+                    {nearbyStations.map((station) => (
+                      <div className="candidate-item" key={station.id}>
+                        <div className="candidate-info">
+                          <strong>{station.place_name || station.placeName}</strong>
+                          <span>
+                            {station.road_address_name || station.address_name}
+                          </span>
+                          {station.distance && (
+                            <b>
+                              {Number(station.distance) >= 1000
+                                ? (Number(station.distance) / 1000).toFixed(1) + "km"
+                                : station.distance + "m"}
+                            </b>
+                          )}
+                        </div>
+                        {station.place_url && (
+                          <button
+                            onClick={() =>
+                              window.open(
+                                station.place_url,
+                                "_blank",
+                                "noopener,noreferrer"
+                              )
+                            }
+                          >
+                            지도
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </section>
