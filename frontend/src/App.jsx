@@ -123,7 +123,7 @@ function App() {
 
   const logout = () => {
     localStorage.removeItem("meetupRoomId");
-    window.location.href = "/api/auth/logout/kakao";
+    window.location.href = "/api/auth/logout";
   };
 
   const copyInviteLink = async () => {
