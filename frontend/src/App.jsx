@@ -1160,9 +1160,6 @@ function App() {
                 <div>
                   <span className="selected-label">추천 중간지점</span>
                   <strong>{midpoint.address}</strong>
-                  <span>
-                    위도 {midpoint.latitude.toFixed(6)} · 경도 {midpoint.longitude.toFixed(6)}
-                  </span>
                 </div>
               </div>
             )}
