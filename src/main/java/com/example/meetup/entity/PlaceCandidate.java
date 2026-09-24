@@ -3,6 +3,7 @@ package com.example.meetup.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -29,10 +30,10 @@ public class PlaceCandidate {
     private String address;
 
     @Column(name = "LATITUDE", nullable = false)
-    private Double latitude;
+    private BigDecimal latitude;
 
     @Column(name = "LONGITUDE", nullable = false)
-    private Double longitude;
+    private BigDecimal longitude;
 
     @Column(name = "KAKAO_PLACE_ID", length = 100)
     private String kakaoPlaceId;
