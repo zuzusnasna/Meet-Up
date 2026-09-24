@@ -55,6 +55,21 @@ function App() {
   const [votingPlaceId, setVotingPlaceId] = useState(null);
   const [weather, setWeather] = useState(null);
   const [weatherLoading, setWeatherLoading] = useState(false);
+  const [locations, setLocations] = useState([]);
+  const [locationMarkers, setLocationMarkers] = useState([]);
+
+  const loadLocations = async () => {
+    try {
+      const response = await fetch("/api/locations/room/" + roomId);
+      if (!response.ok) throw new Error("출발지 조회에 실패했습니다.");
+
+      const data = await response.json();
+      setLocations(data);
+    } catch (error) {
+      console.error(error);
+      alert("출발지를 불러오지 못했습니다.");
+    }
+  };
 
   const loadCandidates = async () => {
     try {
@@ -85,6 +100,7 @@ function App() {
 
   useEffect(() => {
     loadCandidates();
+    loadLocations();
   }, []);
 
   const searchPlaces = async () => {
@@ -154,6 +170,43 @@ function App() {
     if ([85, 86].includes(code)) return "눈 소나기";
     if ([95, 96, 99].includes(code)) return "뇌우";
     return "날씨 정보";
+  };
+
+  const saveLocation = async () => {
+    if (!selectedPlace) {
+      alert("먼저 장소를 선택하세요.");
+      return;
+    }
+
+    const requestBody = {
+      roomId,
+      userId,
+      address:
+        selectedPlace.road_address_name ||
+        selectedPlace.roadAddressName ||
+        selectedPlace.address_name ||
+        selectedPlace.addressName ||
+        selectedPlace.place_name ||
+        selectedPlace.placeName,
+      latitude: Number(selectedPlace.y),
+      longitude: Number(selectedPlace.x),
+    };
+
+    try {
+      const response = await fetch("/api/locations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) throw new Error("출발지 등록에 실패했습니다.");
+
+      alert("출발지 등록 완료!");
+      await loadLocations();
+    } catch (error) {
+      console.error(error);
+      alert("출발지 등록에 실패했습니다.");
+    }
   };
 
   const saveCandidate = async () => {
@@ -240,6 +293,29 @@ function App() {
 
   useEffect(() => {
     if (!map || !window.kakao?.maps) return;
+
+    locationMarkers.forEach((marker) => marker.setMap(null));
+
+    const newLocationMarkers = locations.map((location) => {
+      const position = new window.kakao.maps.LatLng(
+        Number(location.latitude),
+        Number(location.longitude)
+      );
+
+      const marker = new window.kakao.maps.Marker({ map, position });
+
+      const infowindow = new window.kakao.maps.InfoWindow({
+        content: `<div class="info-window">출발지<br/>${location.address}</div>`,
+      });
+
+      window.kakao.maps.event.addListener(marker, "click", () => {
+        infowindow.open(map, marker);
+      });
+
+      return marker;
+    });
+
+    setLocationMarkers(newLocationMarkers);
 
     markers.forEach((marker) => marker.setMap(null));
 
@@ -349,7 +425,37 @@ function App() {
                     {selectedPlace.place_name || selectedPlace.placeName}
                   </strong>
                 </div>
-                <button onClick={saveCandidate}>+ 후보로 등록</button>
+                <div style={{ display: "flex", gap: "6px" }}>
+                  <button onClick={saveLocation}>+ 출발지 등록</button>
+                  <button onClick={saveCandidate}>+ 후보 등록</button>
+                </div>
+              </div>
+            )}
+          </section>
+
+          <section className="panel">
+            <div className="panel-title">
+              <div>
+                <h2>내 출발지</h2>
+                <span>{locations.length}개 등록</span>
+              </div>
+            </div>
+
+            {locations.length === 0 ? (
+              <div className="empty-state">
+                <span>🚩</span>
+                <p>검색한 장소를 출발지로 등록하세요.</p>
+              </div>
+            ) : (
+              <div className="candidate-list">
+                {locations.map((location) => (
+                  <div className="candidate-item" key={location.locationId}>
+                    <div className="candidate-info">
+                      <strong>출발지</strong>
+                      <span>{location.address}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </section>
