@@ -199,9 +199,12 @@ function App() {
         body: JSON.stringify(requestBody),
       });
 
-      if (!response.ok) throw new Error("출발지 등록에 실패했습니다.");
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "출발지 등록에 실패했습니다.");
+      }
 
-      alert("출발지 등록 완료!");
+      alert("출발지가 등록/변경되었습니다!");
       await loadLocations();
     } catch (error) {
       console.error(error);
@@ -349,7 +352,7 @@ function App() {
         )
       );
     }
-  }, [map, places]);
+  }, [map, places, locations]);
 
   return (
     <div className="app">
@@ -426,7 +429,7 @@ function App() {
                   </strong>
                 </div>
                 <div style={{ display: "flex", gap: "6px" }}>
-                  <button onClick={saveLocation}>+ 출발지 등록</button>
+                  <button onClick={saveLocation}>+ 출발지 등록/변경</button>
                   <button onClick={saveCandidate}>+ 후보 등록</button>
                 </div>
               </div>
