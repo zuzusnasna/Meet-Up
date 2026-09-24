@@ -1193,8 +1193,8 @@ function App() {
                       <div className="candidate-item" key={station.id}>
                         <div className="candidate-info">
                           <strong>{station.place_name || station.placeName}</strong>
-                          <span>
-                            {station.road_address_name || station.address_name}
+                          <span className="station-address">
+                            {station.road_address_name || station.address_name || "주소 정보 없음"}
                           </span>
                           {station.distance && (
                             <b>
