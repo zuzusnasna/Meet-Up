@@ -916,12 +916,8 @@ function App() {
                   >
                     <span className="participant-avatar">👤</span>
                     <div>
-                      <strong>
-                        {participant.userId === userId
-                          ? "나"
-                          : participant.userName || "참여자 " + participant.userId}
-                      </strong>
-                      <span>{participant.email || "사용자 ID: " + participant.userId}</span>
+                      <strong>{participant.userName || "참여자"}</strong>
+                      <span>{participant.userId === userId ? "나" : "참여자"}</span>
                     </div>
                   </div>
                 ))}
