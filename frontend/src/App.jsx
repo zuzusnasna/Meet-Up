@@ -58,7 +58,6 @@ function App() {
   const [locations, setLocations] = useState([]);
   const [locationMarkers, setLocationMarkers] = useState([]);
   const [routeTarget, setRouteTarget] = useState(null);
-  const [transportMode, setTransportMode] = useState(null);
 
   const loadLocations = async () => {
     try {
@@ -172,6 +171,31 @@ function App() {
     if ([85, 86].includes(code)) return "눈 소나기";
     if ([95, 96, 99].includes(code)) return "뇌우";
     return "날씨 정보";
+  };
+
+  const openKakaoRoute = (mode) => {
+    const origin = locations.find((location) => location.userId === userId);
+
+    if (!origin) {
+      alert("먼저 내 출발지를 등록해주세요.");
+      return;
+    }
+
+    if (!routeTarget) {
+      return;
+    }
+
+    const originName = encodeURIComponent("내 출발지");
+    const destinationName = encodeURIComponent(routeTarget.placeName);
+
+    const url =
+      "https://map.kakao.com/link/by/" +
+      mode + "/" +
+      originName + "," + origin.latitude + "," + origin.longitude +
+      "/" +
+      destinationName + "," + routeTarget.latitude + "," + routeTarget.longitude;
+
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   const saveLocation = async () => {
@@ -520,7 +544,6 @@ function App() {
                       <button
                         onClick={() => {
                           setRouteTarget(candidate);
-                          setTransportMode(null);
                         }}
                       >
                         🗺️ 길찾기
@@ -548,13 +571,10 @@ function App() {
               <p><strong>출발지</strong><br />{locations.find((location) => location.userId === userId)?.address || "내 출발지를 먼저 등록해주세요."}</p>
               <p><strong>목적지</strong><br />{routeTarget.placeName}</p>
               <div className="transport-buttons">
-                <button className={transportMode === "transit" ? "selected" : ""} onClick={() => setTransportMode("transit")}>🚇 대중교통</button>
-                <button className={transportMode === "car" ? "selected" : ""} onClick={() => setTransportMode("car")}>🚗 자동차</button>
-                <button className={transportMode === "walk" ? "selected" : ""} onClick={() => setTransportMode("walk")}>🚶 도보</button>
+                <button onClick={() => openKakaoRoute("traffic")}>🚇 대중교통</button>
+                <button onClick={() => openKakaoRoute("car")}>🚗 자동차</button>
+                <button onClick={() => openKakaoRoute("walk")}>🚶 도보</button>
               </div>
-              {transportMode && (
-                <p>선택한 이동수단: <strong>{transportMode === "transit" ? "대중교통" : transportMode === "car" ? "자동차" : "도보"}</strong><br />실제 길찾기 결과는 다음 단계에서 연결합니다.</p>
-              )}
               <button onClick={() => setRouteTarget(null)}>닫기</button>
             </div>
           </div>
