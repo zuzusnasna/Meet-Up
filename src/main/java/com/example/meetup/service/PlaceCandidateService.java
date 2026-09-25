@@ -15,6 +15,7 @@ public class PlaceCandidateService {
     private final PlaceCandidateRepository placeCandidateRepository;
 
     public PlaceCandidate save(PlaceCandidate placeCandidate) {
+
         if (placeCandidate.getUserId() == null) {
             throw new IllegalArgumentException("후보 장소 등록자 정보가 필요합니다.");
         }
