@@ -56,11 +56,18 @@ function App() {
   const [markers, setMarkers] = useState([]);
   const [selectedPlace, setSelectedPlace] = useState(null);
   const [roomId, setRoomId] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlRoomId = Number(params.get("roomId"));
+
+    if (urlRoomId) {
+      return null;
+    }
+
     const savedRoomId = localStorage.getItem("meetupRoomId");
     return savedRoomId ? Number(savedRoomId) : null;
   });
 
-  const [inviteRoomId] = useState(() => {
+  const [inviteRoomId, setInviteRoomId] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const urlRoomId = Number(params.get("roomId"));
 
@@ -76,7 +83,20 @@ function App() {
     return savedInviteRoomId || null;
   });
   const [roomName, setRoomName] = useState("");
-  const [roomInput, setRoomInput] = useState("");
+  const [roomInput, setRoomInput] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlRoomId = Number(params.get("roomId"));
+
+    if (urlRoomId) {
+      return String(urlRoomId);
+    }
+
+    const savedInviteRoomId = Number(
+      localStorage.getItem("pendingInviteRoomId")
+    );
+
+    return savedInviteRoomId ? String(savedInviteRoomId) : "";
+  });
   const [currentRoom, setCurrentRoom] = useState(null);
   const [roomLoading, setRoomLoading] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
@@ -125,6 +145,9 @@ function App() {
   }, []);
 
   const userId = currentUser?.userId ?? null;
+  const isRoomOwner = Boolean(
+    currentRoom?.creatorId && userId && currentRoom.creatorId === userId
+  );
 
   const logout = () => {
     localStorage.removeItem("meetupRoomId");
@@ -338,10 +361,15 @@ function App() {
   };
 
   useEffect(() => {
-    if (!userId || !inviteRoomId) return;
+    if (!inviteRoomId || !currentUser) return;
 
-    joinRoomById(inviteRoomId);
-  }, [userId, inviteRoomId]);
+    const logoutKey = "meetupInviteLogoutHandled:" + inviteRoomId;
+    if (localStorage.getItem(logoutKey)) return;
+
+    localStorage.setItem(logoutKey, "true");
+    localStorage.removeItem("meetupRoomId");
+    window.location.href = "/api/auth/logout";
+  }, [inviteRoomId, currentUser]);
 
   const loadRoom = async () => {
     if (!roomId || !userId) return;
@@ -993,11 +1021,27 @@ function App() {
           <p className="eyebrow">INVITED TO MEET-UP</p>
           <h1>Meet-Up</h1>
           <p className="room-entry-description">
-            초대받은 모임방에 입장하는 중입니다.
+            초대받은 모임에 참여하세요.
           </p>
+
           <div className="room-entry-section">
-            <h2>🎉 초대받은 모임</h2>
-            <p>잠시만 기다려주세요. 모임방에 자동으로 입장합니다.</p>
+            <h2>🎉 모임 참여</h2>
+            <p>
+              초대받은 모임의 참여 코드가 입력되어 있습니다.
+              방을 새로 만들 수는 없습니다.
+            </p>
+            <input
+              value={roomInput}
+              onChange={(event) => setRoomInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") joinRoom();
+              }}
+              placeholder="참여 코드를 입력하세요"
+              inputMode="numeric"
+            />
+            <button onClick={joinRoom} disabled={roomLoading}>
+              {roomLoading ? "입장 중..." : "모임 참여하기"}
+            </button>
           </div>
         </div>
       </div>
@@ -1063,10 +1107,15 @@ function App() {
           <p>{currentRoom?.roomName || "함께 만날 장소를 검색하고 후보를 정해보세요."}</p>
         </div>
         <div className="room-header-actions">
-          <span>{currentUser.name || currentUser.email || "사용자"} · 방 ID: {roomId}</span>
-          <button onClick={copyInviteLink}>
-            {inviteCopied ? "복사 완료!" : "🔗 초대 링크"}
-          </button>
+          <span>
+            {currentUser.name || currentUser.email || "사용자"} ·{" "}
+            {isRoomOwner ? "방장" : "참여자"} · 방 ID: {roomId}
+          </span>
+          {isRoomOwner && (
+            <button onClick={copyInviteLink}>
+              {inviteCopied ? "복사 완료!" : "🔗 초대 링크"}
+            </button>
+          )}
           <button
             onClick={() => {
               localStorage.removeItem("meetupRoomId");
