@@ -881,7 +881,7 @@ function App() {
       const marker = new window.kakao.maps.Marker({ map, position });
 
       const infowindow = new window.kakao.maps.InfoWindow({
-        content: `<div class="info-window">출발지<br/>${location.address}</div>`,
+        content: `<div class="info-window"><strong>${location.userName || "참여자"}의 출발지</strong><br/>${location.address}</div>`,
       });
 
       window.kakao.maps.event.addListener(marker, "click", () => {
@@ -1170,7 +1170,7 @@ function App() {
           <section className="panel">
             <div className="panel-title">
               <div>
-                <h2>내 출발지</h2>
+                <h2>참여자 출발지</h2>
                 <span>{locations.length}개 등록</span>
               </div>
             </div>
@@ -1178,14 +1178,18 @@ function App() {
             {locations.length === 0 ? (
               <div className="empty-state">
                 <span>🚩</span>
-                <p>검색한 장소를 출발지로 등록하세요.</p>
+                <p>각 참여자가 등록한 출발지를 확인할 수 있습니다.</p>
               </div>
             ) : (
               <div className="candidate-list">
                 {locations.map((location) => (
                   <div className="candidate-item" key={location.locationId}>
                     <div className="candidate-info">
-                      <strong>출발지</strong>
+                      <strong>
+                        {location.userId === userId
+                          ? "나의 출발지"
+                          : `${location.userName || "참여자"}의 출발지`}
+                      </strong>
                       <span>{location.address}</span>
                     </div>
                   </div>
