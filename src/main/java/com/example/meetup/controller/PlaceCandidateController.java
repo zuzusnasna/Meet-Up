@@ -1,6 +1,7 @@
 package com.example.meetup.controller;
 
 import com.example.meetup.entity.PlaceCandidate;
+import com.example.meetup.dto.PlaceCandidateResponse;
 import com.example.meetup.service.PlaceCandidateService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -20,7 +21,7 @@ public class PlaceCandidateController {
     }
 
     @GetMapping("/room/{roomId}")
-    public List<PlaceCandidate> findByRoomId(@PathVariable Long roomId) {
+    public List<PlaceCandidateResponse> findByRoomId(@PathVariable Long roomId) {
         return placeCandidateService.findByRoomId(roomId);
     }
 
