@@ -33,4 +33,6 @@ public interface PlaceCandidateRepository extends JpaRepository<PlaceCandidate, 
     List<PlaceCandidateResponse> findResponsesByRoomId(@Param("roomId") Long roomId);
 
     long countByRoomIdAndUserId(Long roomId, Long userId);
+
+    boolean existsByRoomIdAndKakaoPlaceId(Long roomId, String kakaoPlaceId);
 }
