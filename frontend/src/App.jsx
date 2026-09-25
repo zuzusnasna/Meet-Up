@@ -51,7 +51,7 @@ function App() {
   const [nearbyStations, setNearbyStations] = useState([]);
   const [nearbyStationRadius, setNearbyStationRadius] = useState(null);
   const [stationLoading, setStationLoading] = useState(false);
-  const [keyword, setKeyword] = useState("스타벅스");
+  const [keyword, setKeyword] = useState("");
   const [places, setPlaces] = useState([]);
   const [markers, setMarkers] = useState([]);
   const [selectedPlace, setSelectedPlace] = useState(null);
