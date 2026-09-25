@@ -8,4 +8,6 @@ import java.util.List;
 public interface PlaceCandidateRepository extends JpaRepository<PlaceCandidate, Long> {
 
     List<PlaceCandidate> findByRoomId(Long roomId);
+
+    long countByRoomIdAndUserId(Long roomId, Long userId);
 }
