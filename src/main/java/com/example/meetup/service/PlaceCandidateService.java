@@ -1,6 +1,7 @@
 package com.example.meetup.service;
 
 import com.example.meetup.entity.PlaceCandidate;
+import com.example.meetup.dto.PlaceCandidateResponse;
 import com.example.meetup.repository.PlaceCandidateRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -32,8 +33,8 @@ public class PlaceCandidateService {
         return placeCandidateRepository.save(placeCandidate);
     }
 
-    public List<PlaceCandidate> findByRoomId(Long roomId) {
-        return placeCandidateRepository.findByRoomId(roomId);
+    public List<PlaceCandidateResponse> findByRoomId(Long roomId) {
+        return placeCandidateRepository.findResponsesByRoomId(roomId);
     }
 
     public void delete(Long placeId) {
