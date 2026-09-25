@@ -26,7 +26,7 @@ public interface PlaceCandidateRepository extends JpaRepository<PlaceCandidate, 
                 p.createdAt
             )
             from PlaceCandidate p
-            left join User u on p.userId = u.userId
+            join User u on u.userId = p.userId
             where p.roomId = :roomId
             order by p.placeId
             """)
