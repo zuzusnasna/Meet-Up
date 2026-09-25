@@ -1393,6 +1393,7 @@ function App() {
                     <div className="candidate-info">
                       <strong>{candidate.placeName}</strong>
                       <span>{candidate.address}</span>
+                      <span>👤 {candidate.userName || "참여자"} 추천</span>
                       <b>현재 {voteCounts[candidate.placeId] ?? 0}표</b>
                       <div className="candidate-actions">
                         <button onClick={() => openNearby(candidate)}>
