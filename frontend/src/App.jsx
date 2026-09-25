@@ -798,6 +798,7 @@ function App() {
       latitude: Number(selectedPlace.y),
       longitude: Number(selectedPlace.x),
       kakaoPlaceId: selectedPlace.id,
+      userId,
     };
 
     try {
@@ -807,7 +808,10 @@ function App() {
         body: JSON.stringify(requestBody),
       });
 
-      if (!response.ok) throw new Error("후보 장소 등록에 실패했습니다.");
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "후보 장소 등록에 실패했습니다.");
+      }
 
       const savedPlace = await response.json();
       alert(savedPlace.placeName + " 후보 등록 완료!");
@@ -815,7 +819,7 @@ function App() {
       await loadCandidates();
     } catch (error) {
       console.error(error);
-      alert("후보 장소 등록에 실패했습니다.");
+      alert(error.message || "후보 장소 등록에 실패했습니다.");
     }
   };
 
@@ -1111,11 +1115,9 @@ function App() {
             {currentUser.name || currentUser.email || "사용자"} ·{" "}
             {isRoomOwner ? "방장" : "참여자"} · 방 ID: {roomId}
           </span>
-          {isRoomOwner && (
-            <button onClick={copyInviteLink}>
-              {inviteCopied ? "복사 완료!" : "🔗 초대 링크"}
-            </button>
-          )}
+          <button onClick={copyInviteLink}>
+            {inviteCopied ? "복사 완료!" : "🔗 초대 링크"}
+          </button>
           <button
             onClick={() => {
               localStorage.removeItem("meetupRoomId");
