@@ -23,6 +23,9 @@ public class PlaceCandidate {
     @Column(name = "ROOM_ID", nullable = false)
     private Long roomId;
 
+    @Column(name = "USER_ID")
+    private Long userId;
+
     @Column(name = "PLACE_NAME", nullable = false, length = 200)
     private String placeName;
 
