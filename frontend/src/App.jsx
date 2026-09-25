@@ -787,6 +787,19 @@ function App() {
       return;
     }
 
+    const kakaoPlaceId = selectedPlace.id || selectedPlace.kakaoPlaceId;
+
+    // 같은 모임에 이미 등록된 후보인지 먼저 확인
+    const alreadyExists = candidates.some(
+      (candidate) =>
+        String(candidate.kakaoPlaceId) === String(kakaoPlaceId)
+    );
+
+    if (alreadyExists) {
+      alert("이미 다른 참여자가 추천한 장소입니다.");
+      return;
+    }
+
     const requestBody = {
       roomId,
       placeName: selectedPlace.place_name || selectedPlace.placeName,
@@ -797,7 +810,7 @@ function App() {
         selectedPlace.addressName,
       latitude: Number(selectedPlace.y),
       longitude: Number(selectedPlace.x),
-      kakaoPlaceId: selectedPlace.id,
+      kakaoPlaceId,
       userId,
     };
 
