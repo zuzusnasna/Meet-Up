@@ -1,6 +1,7 @@
 package com.example.meetup.service;
 
 import com.example.meetup.entity.Location;
+import com.example.meetup.dto.LocationResponse;
 import com.example.meetup.repository.LocationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -30,8 +31,8 @@ public class LocationService {
         return locationRepository.save(location);
     }
 
-    public List<Location> findByRoomId(Long roomId) {
-        return locationRepository.findByRoomId(roomId);
+    public List<LocationResponse> findByRoomId(Long roomId) {
+        return locationRepository.findLocationResponsesByRoomId(roomId);
     }
 
     public List<Location> findByUserId(Long userId) {
