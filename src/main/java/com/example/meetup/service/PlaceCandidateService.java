@@ -20,6 +20,17 @@ public class PlaceCandidateService {
             throw new IllegalArgumentException("후보 장소 등록자 정보가 필요합니다.");
         }
 
+        boolean alreadyExists = placeCandidateRepository.existsByRoomIdAndKakaoPlaceId(
+                placeCandidate.getRoomId(),
+                placeCandidate.getKakaoPlaceId()
+        );
+
+        if (alreadyExists) {
+            throw new IllegalStateException(
+                    "이미 다른 참여자가 추천한 장소입니다."
+            );
+        }
+
         long count = placeCandidateRepository.countByRoomIdAndUserId(
                 placeCandidate.getRoomId(),
                 placeCandidate.getUserId()
