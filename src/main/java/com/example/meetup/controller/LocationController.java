@@ -1,6 +1,7 @@
 package com.example.meetup.controller;
 
 import com.example.meetup.entity.Location;
+import com.example.meetup.dto.LocationResponse;
 import com.example.meetup.service.LocationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -20,7 +21,7 @@ public class LocationController {
     }
 
     @GetMapping("/room/{roomId}")
-    public List<Location> findByRoomId(@PathVariable Long roomId) {
+    public List<LocationResponse> findByRoomId(@PathVariable Long roomId) {
         return locationService.findByRoomId(roomId);
     }
 
