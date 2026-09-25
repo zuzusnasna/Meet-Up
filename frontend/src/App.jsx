@@ -986,6 +986,24 @@ function App() {
     );
   }
 
+  if (!roomId && inviteRoomId) {
+    return (
+      <div className="room-entry">
+        <div className="room-entry-card">
+          <p className="eyebrow">INVITED TO MEET-UP</p>
+          <h1>Meet-Up</h1>
+          <p className="room-entry-description">
+            초대받은 모임방에 입장하는 중입니다.
+          </p>
+          <div className="room-entry-section">
+            <h2>🎉 초대받은 모임</h2>
+            <p>잠시만 기다려주세요. 모임방에 자동으로 입장합니다.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!roomId) {
     return (
       <div className="room-entry">
