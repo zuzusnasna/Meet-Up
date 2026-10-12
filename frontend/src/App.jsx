@@ -929,8 +929,12 @@ function App() {
         content: `<div class="info-window"><strong>${location.userName || "참여자"}의 출발지</strong><br/>${location.address}</div>`,
       });
 
-      window.kakao.maps.event.addListener(marker, "click", () => {
+      window.kakao.maps.event.addListener(marker, "mouseover", () => {
         infowindow.open(map, marker);
+      });
+
+      window.kakao.maps.event.addListener(marker, "mouseout", () => {
+        infowindow.close();
       });
 
       return marker;
