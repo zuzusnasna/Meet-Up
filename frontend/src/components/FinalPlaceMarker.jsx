@@ -1,5 +1,13 @@
 import { useEffect } from "react";
 
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+
 export default function FinalPlaceMarker({ map, place, onFocus }) {
   useEffect(() => {
     if (!map || !place || !window.kakao?.maps) return undefined;
@@ -11,9 +19,9 @@ export default function FinalPlaceMarker({ map, place, onFocus }) {
     const position = new window.kakao.maps.LatLng(latitude, longitude);
     const marker = new window.kakao.maps.Marker({ map, position });
     const infoWindow = new window.kakao.maps.InfoWindow({
-      content: `<div class="info-window"><strong>🎉 최종 약속장소</strong><br/>${String(
+      content: `<div class="info-window"><strong>🎉 최종 약속장소</strong><br/>${escapeHtml(
         place.placeName || "최종 장소"
-      )}<br/>${String(place.address || "")}</div>`,
+      )}<br/>${escapeHtml(place.address || "")}</div>`,
     });
 
     window.kakao.maps.event.addListener(marker, "click", () => {
@@ -25,7 +33,15 @@ export default function FinalPlaceMarker({ map, place, onFocus }) {
       infoWindow.close();
       marker.setMap(null);
     };
-  }, [map, place?.placeId, place?.latitude, place?.longitude, place?.placeName, place?.address, onFocus]);
+  }, [
+    map,
+    place?.placeId,
+    place?.latitude,
+    place?.longitude,
+    place?.placeName,
+    place?.address,
+    onFocus,
+  ]);
 
   return null;
 }
