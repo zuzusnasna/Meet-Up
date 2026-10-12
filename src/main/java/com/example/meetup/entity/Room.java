@@ -27,4 +27,11 @@ public class Room {
 
     @Column(name = "CREATED_AT")
     private LocalDateTime createdAt;
+
+    @Column(name = "FINAL_PLACE_ID")
+    private Long finalPlaceId;
+
+    @Column(name = "VOTE_FINISHED_AT")
+    private LocalDateTime voteFinishedAt;
+
 }
