@@ -1066,7 +1066,17 @@ function App() {
         onLogout={logout}
       />
 
-      <div className="content">
+      <nav className="top-nav" aria-label="주요 메뉴">
+        <a className="top-nav-link active" href="#meeting-place">
+          약속장소 정하기
+        </a>
+      </nav>
+
+      <div className="top-participants-panel">
+        <ParticipantsPanel participants={participants} userId={userId} />
+      </div>
+
+      <div className="content" id="meeting-place">
         <div ref={mapRef} className="map" />
 
         <aside className="sidebar">
@@ -1080,8 +1090,6 @@ function App() {
             onSaveLocation={saveLocation}
             onSaveCandidate={saveCandidate}
           />
-
-          <ParticipantsPanel participants={participants} userId={userId} />
 
           <OriginPanel
             locations={locations}
