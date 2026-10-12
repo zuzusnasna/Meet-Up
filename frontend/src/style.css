@@ -2358,3 +2358,172 @@ textarea:focus-visible {
   }
 }
 
+
+
+/* 최종 약속장소 아래 주변 맛집·관광지 필터 */
+.map-column {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 14px;
+}
+.map-column .map {
+  position: sticky;
+  top: 18px;
+}
+.final-nearby {
+  padding: 18px;
+}
+.final-nearby-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 15px;
+}
+.final-nearby-eyebrow {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .1em;
+}
+.final-nearby-heading h2 {
+  margin: 0 0 5px;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -.03em;
+}
+.final-nearby-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.final-nearby-count {
+  flex-shrink: 0;
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+.final-nearby-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.final-nearby-tabs button {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+.final-nearby-tabs button:hover {
+  border-color: #b8cbbd;
+  background: #f6f9f5;
+}
+.final-nearby-tabs button.active {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+.final-nearby-list {
+  display: grid;
+  gap: 8px;
+  max-height: 410px;
+  overflow-y: auto;
+}
+.final-nearby-item {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 11px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+.final-nearby-item:hover {
+  border-color: #cbdacb;
+  background: #f7faf6;
+}
+.final-nearby-item > img,
+.final-nearby-item-icon {
+  display: flex;
+  width: 54px;
+  height: 54px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  object-fit: cover;
+  font-size: 22px;
+}
+.final-nearby-item-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+.final-nearby-item-copy strong {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.final-nearby-item-copy small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.final-nearby-item-arrow {
+  flex-shrink: 0;
+  color: var(--primary);
+  font-size: 16px;
+  font-weight: 800;
+}
+.final-nearby-empty {
+  padding: 22px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+@media (max-width: 900px) {
+  .map-column .map {
+    position: relative;
+    top: auto;
+    height: 55vh;
+    min-height: 360px;
+  }
+}
+@media (max-width: 520px) {
+  .final-nearby {
+    padding: 14px;
+  }
+  .final-nearby-item > img,
+  .final-nearby-item-icon {
+    width: 46px;
+    height: 46px;
+  }
+}
