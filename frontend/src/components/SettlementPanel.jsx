@@ -13,7 +13,15 @@ function splitAmount(amount, count, index) {
 
 export default function SettlementPanel({ roomId, participants }) {
   const storageKey = `meetupSettlement:${roomId}`;
-  const [amounts, setAmounts] = useState(emptyAmounts);
+  const [amounts, setAmounts] = useState(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      return saved ? { ...emptyAmounts, ...JSON.parse(saved) } : emptyAmounts;
+    } catch {
+      return emptyAmounts;
+    }
+  });
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     try {
@@ -22,16 +30,19 @@ export default function SettlementPanel({ roomId, participants }) {
     } catch (error) {
       console.error("정산 금액을 불러오지 못했습니다.", error);
       setAmounts(emptyAmounts);
+    } finally {
+      setLoaded(true);
     }
   }, [storageKey]);
 
   useEffect(() => {
+    if (!loaded) return;
     try {
       localStorage.setItem(storageKey, JSON.stringify(amounts));
     } catch (error) {
       console.error("정산 금액을 저장하지 못했습니다.", error);
     }
-  }, [storageKey, amounts]);
+  }, [storageKey, amounts, loaded]);
 
   const participantCount = participants.length;
   const firstAmount = Math.max(0, Number(amounts.first) || 0);
