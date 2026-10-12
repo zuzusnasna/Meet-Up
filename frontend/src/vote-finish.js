@@ -1,8 +1,10 @@
 const FINISH_BUTTON_ID = "meetup-vote-finish-button";
 const RESULT_CLASS = "final-place-result";
+const OWNER_INFO_CLASS = "room-owner-info";
 let currentRoom = null;
 let currentUser = null;
 let lastFinishedPlaceId = null;
+let lastFinalVoteCount = 0;
 let ladderShowing = false;
 
 const getRoomId = () => Number(localStorage.getItem("meetupRoomId")) || null;
@@ -43,10 +45,48 @@ const getCandidates = () => {
 const findCandidateByPlaceId = (placeId) =>
   getCandidates().find((candidate) => candidate.placeId === Number(placeId)) || null;
 
-const renderFinalPlace = (place) => {
+const getProviderLabel = (provider) => {
+  const labels = { KAKAO: "카카오", NAVER: "네이버", GOOGLE: "구글" };
+  return labels[String(provider || "").toUpperCase()] || provider || "알 수 없음";
+};
+
+const renderRoomOwnerInfo = () => {
+  if (!currentRoom?.creatorId) return;
+
+  const title = [...document.querySelectorAll("h1, h2, h3, h4, strong")].find(
+    (element) => element.textContent?.trim() === String(currentRoom.roomName || "").trim()
+  );
+  const anchor = title?.closest('[class*="room"], header') || title?.parentElement;
+  if (!anchor) return;
+
+  let info = anchor.querySelector(`.${OWNER_INFO_CLASS}`);
+  if (!info) {
+    info = document.createElement("div");
+    info.className = OWNER_INFO_CLASS;
+    anchor.appendChild(info);
+  }
+
+  info.innerHTML = `
+    <span>방장</span>
+    <strong>${currentRoom.creatorName || "알 수 없음"}</strong>
+    <small>${getProviderLabel(currentRoom.creatorProvider)} 로그인</small>
+  `;
+};
+
+const removeCandidateList = (panel) => {
+  panel.querySelectorAll(".candidate-item").forEach((card) => card.remove());
+  panel.querySelectorAll("h1, h2, h3, h4, strong").forEach((element) => {
+    if (element.textContent?.includes("모임 후보 장소")) element.remove();
+  });
+};
+
+const renderFinalPlace = (place, voteCount = lastFinalVoteCount) => {
   if (!place) return;
   const panel = document.querySelector(".candidate-panel");
   if (!panel) return;
+
+  lastFinalVoteCount = Number(voteCount) || 0;
+  removeCandidateList(panel);
 
   let result = panel.querySelector(`.${RESULT_CLASS}`);
   if (!result) {
@@ -59,12 +99,9 @@ const renderFinalPlace = (place) => {
     <span>🎉 최종 약속장소</span>
     <strong>${place.name}</strong>
     <small>${place.address}</small>
+    <b>최종 득표 ${lastFinalVoteCount}표</b>
   `;
 
-  panel.querySelectorAll(".candidate-item > button").forEach((button) => {
-    button.disabled = true;
-    button.textContent = "마감";
-  });
   panel.querySelector(`#${FINISH_BUTTON_ID}`)?.remove();
 };
 
@@ -215,6 +252,7 @@ const loadRoom = async () => {
     const response = await fetch(`/api/rooms/${roomId}`, { cache: "no-store" });
     if (!response.ok) return false;
     currentRoom = await response.json();
+    renderRoomOwnerInfo();
     return true;
   } catch (error) {
     console.error("모임방 조회 실패", error);
@@ -255,13 +293,11 @@ const getVoteResult = async () => {
 const applyVoteResult = (result, animateTie = false) => {
   if (!result?.finished || !result.finalPlaceId) return;
 
-  const place = findCandidateByPlaceId(result.finalPlaceId);
+  const candidates = getCandidates();
+  const place = candidates.find((candidate) => candidate.placeId === Number(result.finalPlaceId));
   if (!place) return;
 
-  renderFinalPlace(place);
-
   if (animateTie && result.tie) {
-    const candidates = getCandidates();
     const maxVotes = Math.max(...candidates.map((candidate) => candidate.votes));
     const tiedCandidates = candidates.filter((candidate) => candidate.votes === maxVotes);
     const winnerIndex = tiedCandidates.findIndex(
@@ -272,13 +308,14 @@ const applyVoteResult = (result, animateTie = false) => {
       showTieLadder(tiedCandidates, winnerIndex);
     }
   }
+
+  renderFinalPlace(place, result.finalVoteCount);
 };
 
 const finishVote = async () => {
   const roomId = getRoomId();
   if (!roomId) return;
 
-  // 방장 여부는 주기적으로 확인하지 않고, 실제 투표 마감 클릭 시점에만 확인한다.
   await loadCurrentUser();
   await loadRoom();
 
@@ -309,11 +346,14 @@ const finishVote = async () => {
     if (!response.ok) throw new Error(message || "투표 마감에 실패했습니다.");
 
     const result = JSON.parse(message);
-    const finalCandidate = findCandidateByPlaceId(result.finalPlaceId);
+    const finalCandidate = candidates.find(
+      (candidate) => candidate.placeId === Number(result.finalPlaceId)
+    );
     if (!finalCandidate) throw new Error("최종 장소 정보를 찾을 수 없습니다.");
 
     applyVoteResult(result, result.tie);
     lastFinishedPlaceId = Number(result.finalPlaceId);
+    lastFinalVoteCount = Number(result.finalVoteCount) || 0;
     currentRoom.voteFinishedAt = result.finishedAt;
     currentRoom.finalPlaceId = result.finalPlaceId;
 
@@ -345,15 +385,19 @@ const ensureFinishButton = () => {
 };
 
 const syncVoteResult = async () => {
+  await loadRoom();
   await refreshCandidateIds();
   const result = await getVoteResult();
   if (!result?.finished) {
     ensureFinishButton();
+    renderRoomOwnerInfo();
     return;
   }
 
   lastFinishedPlaceId = Number(result.finalPlaceId);
+  lastFinalVoteCount = Number(result.finalVoteCount) || 0;
   applyVoteResult(result, false);
+  renderRoomOwnerInfo();
 };
 
 const boot = async () => {
@@ -364,10 +408,13 @@ const boot = async () => {
 };
 
 const observer = new MutationObserver(() => {
+  renderRoomOwnerInfo();
   ensureFinishButton();
   if (lastFinishedPlaceId) {
-    const place = findCandidateByPlaceId(lastFinishedPlaceId);
-    if (place) renderFinalPlace(place);
+    const place = getCandidates().find(
+      (candidate) => candidate.placeId === Number(lastFinishedPlaceId)
+    );
+    if (place) renderFinalPlace(place, lastFinalVoteCount);
   }
 });
 

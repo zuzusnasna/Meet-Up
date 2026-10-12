@@ -18,6 +18,34 @@
   box-shadow: 0 10px 22px rgba(91, 92, 226, 0.24);
 }
 
+.room-owner-info {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 6px;
+  color: #707889;
+  font-size: 11px;
+}
+
+.room-owner-info span {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #eef0ff;
+  color: #5558cf;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.room-owner-info strong {
+  color: #2c3140;
+  font-size: 11px;
+}
+
+.room-owner-info small {
+  color: #8a91a0;
+  font-size: 10px;
+}
+
 .final-place-result {
   margin: 13px;
   padding: 18px;
@@ -43,6 +71,12 @@
 .final-place-result small {
   color: #737c8c;
   font-size: 11px;
+}
+
+.final-place-result b {
+  margin-top: 4px;
+  color: #5b5ce2;
+  font-size: 12px;
 }
 
 .vote-finish-modal {
