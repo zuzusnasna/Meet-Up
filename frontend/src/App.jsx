@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import RoomHeader from "./components/RoomHeader";
 import ParticipantsPanel from "./components/ParticipantsPanel";
 import CandidatePanel from "./components/CandidatePanel";
+import SearchPanel from "./components/SearchPanel";
+import OriginPanel from "./components/OriginPanel";
+import WeatherPanel from "./components/WeatherPanel";
 
 const KAKAO_JS_KEY = import.meta.env.VITE_KAKAO_JS_KEY;
 
@@ -1146,222 +1149,42 @@ function App() {
         onLogout={logout}
       />
 
-      <div className="search-box">
-        <input
-          value={keyword}
-          onChange={(event) => setKeyword(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") searchPlaces();
-          }}
-          placeholder="장소를 검색하세요"
-        />
-        <button onClick={searchPlaces}>검색</button>
-      </div>
-
       <div className="content">
         <div ref={mapRef} className="map" />
 
         <aside className="sidebar">
-          <section className="panel search-panel">
-            <div className="panel-title">
-              <div>
-                <h2>검색 결과</h2>
-                <span>{places.length}개의 장소</span>
-              </div>
-            </div>
-
-            <div className="place-list">
-              {places.length === 0 ? (
-                <div className="empty-state">
-                  <span>📍</span>
-                  <p>장소를 검색해보세요.</p>
-                </div>
-              ) : (
-                places.map((place) => {
-                  const isSelected = selectedPlace?.id === place.id;
-
-                  return (
-                    <button
-                      className={`place-item ${isSelected ? "selected" : ""}`}
-                      key={place.id}
-                      onClick={() => selectPlace(place)}
-                    >
-                      <strong>
-                        {place.place_name || place.placeName || "장소명 없음"}
-                      </strong>
-                      <span>
-                        {place.road_address_name ||
-                          place.roadAddressName ||
-                          place.address_name ||
-                          place.addressName}
-                      </span>
-                      {place.phone && <span>{place.phone}</span>}
-                    </button>
-                  );
-                })
-              )}
-            </div>
-
-            {selectedPlace && (
-              <div className="selected-place">
-                <div>
-                  <span className="selected-label">선택한 장소</span>
-                  <strong>
-                    {selectedPlace.place_name || selectedPlace.placeName}
-                  </strong>
-                </div>
-                <div style={{ display: "flex", gap: "6px" }}>
-                  <button onClick={saveLocation}>+ 출발지 등록/변경</button>
-                  <button onClick={saveCandidate}>+ 후보 등록</button>
-                </div>
-              </div>
-            )}
-          </section>
+          <SearchPanel
+            keyword={keyword}
+            setKeyword={setKeyword}
+            onSearch={searchPlaces}
+            places={places}
+            selectedPlace={selectedPlace}
+            onSelectPlace={selectPlace}
+            onSaveLocation={saveLocation}
+            onSaveCandidate={saveCandidate}
+          />
 
           <ParticipantsPanel participants={participants} userId={userId} />
 
-          <section className="panel">
-            <div className="panel-title">
-              <div>
-                <h2>참여자 출발지</h2>
-                <span>{locations.length}개 등록</span>
-              </div>
-            </div>
-
-            {locations.length === 0 ? (
-              <div className="empty-state">
-                <span>🚩</span>
-                <p>각 참여자가 등록한 출발지를 확인할 수 있습니다.</p>
-              </div>
-            ) : (
-              <div className="candidate-list">
-                {locations.map((location) => (
-                  <div
-                    className="candidate-item"
-                    key={location.locationId}
-                    onClick={() =>
-                      focusMapOnPosition(location.latitude, location.longitude)
-                    }
-                    style={{ cursor: "pointer" }}
-                  >
-                    <div className="candidate-info">
-                      <strong>
-                        {location.userId === userId
-                          ? "나의 출발지"
-                          : `${location.userName || "참여자"}의 출발지`}
-                      </strong>
-                      <span>{location.address}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            <button
-              onClick={findMidpoint}
-              disabled={locations.length < 2}
-              style={{ width: "100%", marginTop: "10px" }}
-            >
-              📍 중간지점 정하기
-            </button>
-
-            {midpoint && (
-              <div className="selected-place" style={{ marginTop: "10px" }}>
-                <div>
-                  <span className="selected-label">추천 중간지점</span>
-                  <strong>{midpoint.address}</strong>
-                </div>
-              </div>
-            )}
-
-            {midpoint && (
-              <div style={{ marginTop: "10px" }}>
-                <div className="panel-title">
-                  <div>
-                    <h2>🚇 주변 지하철역</h2>
-                    <span>
-                      {nearbyStationRadius
-                        ? nearbyStationRadius / 1000 + "km 이내 검색 결과"
-                        : "검색 중"}
-                    </span>
-                  </div>
-                </div>
-
-                {stationLoading ? (
-                  <div className="empty-state">
-                    <span>🚇</span>
-                    <p>주변 역을 찾는 중...</p>
-                  </div>
-                ) : nearbyStations.length === 0 ? (
-                  <div className="empty-state">
-                    <span>🚉</span>
-                    <p>3km 이내에 검색되는 역이 없습니다.</p>
-                  </div>
-                ) : (
-                  <div className="candidate-list">
-                    {nearbyStations.map((station) => (
-                      <div className="candidate-item" key={station.id} onClick={() => showStationOnMap(station)} style={{ cursor: "pointer" }}>
-                        <div className="candidate-info">
-                          <strong>{station.place_name || station.placeName}</strong>
-                          {station.distance && (
-                            <b>
-                              {Number(station.distance) >= 1000
-                                ? (Number(station.distance) / 1000).toFixed(1) + "km"
-                                : station.distance + "m"}
-                            </b>
-                          )}
-                        </div>
-                        <button
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            showStationOnMap(station);
-                            setRouteTarget({
-                              placeName:
-                                station.place_name || station.placeName || "지하철역",
-                              latitude: Number(station.y),
-                              longitude: Number(station.x),
-                            });
-                          }}
-                        >
-                          길찾기
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </section>
+          <OriginPanel
+            locations={locations}
+            userId={userId}
+            onFocusMap={focusMapOnPosition}
+            onFindMidpoint={findMidpoint}
+            midpoint={midpoint}
+            nearbyStationRadius={nearbyStationRadius}
+            stationLoading={stationLoading}
+            nearbyStations={nearbyStations}
+            onShowStation={showStationOnMap}
+            onSetRouteTarget={setRouteTarget}
+          />
 
           {selectedPlace && (
-            <section className="panel weather-panel">
-              <div className="panel-title">
-                <div>
-                  <h2>현재 날씨</h2>
-                  <span>선택한 장소 기준</span>
-                </div>
-              </div>
-
-              <div className="weather-content">
-                {weatherLoading ? (
-                  <div className="weather-loading">날씨를 불러오는 중...</div>
-                ) : weather ? (
-                  <>
-                    <div className="weather-main">
-                      <strong>{weather.temperature_2m}°C</strong>
-                      <span>{getWeatherText(weather.weather_code)}</span>
-                    </div>
-                    <div className="weather-details">
-                      <span>습도 {weather.relative_humidity_2m}%</span>
-                      <span>강수량 {weather.precipitation}mm</span>
-                      <span>바람 {weather.wind_speed_10m}km/h</span>
-                    </div>
-                  </>
-                ) : (
-                  <div className="weather-loading">날씨 정보를 가져오지 못했습니다.</div>
-                )}
-              </div>
-            </section>
+            <WeatherPanel
+              weather={weather}
+              loading={weatherLoading}
+              getWeatherText={getWeatherText}
+            />
           )}
 
           <CandidatePanel
