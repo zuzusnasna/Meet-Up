@@ -110,14 +110,13 @@ export default function FinalPlaceMarker({ map, place, onFocus }) {
             itemInfoWindow.close();
           });
           window.kakao.maps.event.addListener(itemMarker, "click", () => {
-            if (item.placeUrl) {
-              window.open(item.placeUrl, "_blank", "noopener,noreferrer");
-              return;
-            }
-            map.setCenter(itemPosition);
-            map.setLevel(4);
-            itemInfoWindow.setZIndex(1000);
-            itemInfoWindow.open(map, itemMarker);
+            const searchQuery = [item.title, item.address]
+              .filter(Boolean)
+              .join(" ");
+            const naverSearchUrl =
+              "https://search.naver.com/search.naver?query=" +
+              encodeURIComponent(searchQuery || item.title || categoryLabel);
+            window.open(naverSearchUrl, "_blank", "noopener,noreferrer");
           });
 
           markers.push(itemMarker);
