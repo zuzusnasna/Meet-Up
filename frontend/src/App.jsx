@@ -1079,19 +1079,11 @@ function App() {
           setCurrentRoom(null);
         }}
         onLogout={logout}
+        finalPlace={activeTab === "meeting" ? finalPlace : null}
+        weather={weather}
+        weatherLoading={weatherLoading}
+        getWeatherText={getWeatherText}
       />
-
-      {finalPlace && activeTab === "meeting" && (
-        <div className="top-weather-panel">
-          <WeatherPanel
-            weather={weather}
-            loading={weatherLoading}
-            getWeatherText={getWeatherText}
-            title="최종 약속장소 주변 날씨"
-            subtitle={finalPlace.placeName}
-          />
-        </div>
-      )}
 
       <nav className="top-nav" aria-label="주요 메뉴">
         <button
