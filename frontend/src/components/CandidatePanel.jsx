@@ -163,6 +163,7 @@ export default function CandidatePanel({
   onSetMemoModal,
   onFocusMap,
   map,
+  onFinalPlaceChange,
 }) {
   const [voteResult, setVoteResult] = useState(null);
   const [finishing, setFinishing] = useState(false);
@@ -193,6 +194,10 @@ export default function CandidatePanel({
   const finalPlace = candidates.find(
     (candidate) => Number(candidate.placeId) === Number(voteResult?.finalPlaceId)
   );
+
+  useEffect(() => {
+    onFinalPlaceChange?.(voteResult?.finished ? finalPlace ?? null : null);
+  }, [voteResult?.finished, finalPlace?.placeId, finalPlace?.placeName, finalPlace?.latitude, finalPlace?.longitude, finalPlace?.address, onFinalPlaceChange]);
 
   const finishVote = async () => {
     if (Number(currentRoom?.creatorId) !== Number(currentUser?.userId)) {
