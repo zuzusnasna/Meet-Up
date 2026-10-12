@@ -2019,3 +2019,342 @@ textarea:focus-visible {
   }
 }
 
+/* 유동적인 장소별·항목별 더치페이 */
+.settlement-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 4px 0 18px;
+}
+
+.settlement-section-heading h3 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+
+.settlement-section-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.settlement-add-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  flex-shrink: 0;
+  padding: 11px 15px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--primary);
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  transition: transform 140ms ease, opacity 140ms ease;
+}
+
+.settlement-add-button:hover {
+  opacity: .92;
+  transform: translateY(-1px);
+}
+
+.settlement-add-button span {
+  font-size: 17px;
+  line-height: 1;
+}
+
+.settlement-expense-list {
+  display: grid;
+  gap: 15px;
+}
+
+.settlement-expense-card {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface-soft);
+}
+
+.settlement-expense-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.settlement-expense-number {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.settlement-expense-label {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.settlement-remove-button {
+  margin-left: auto;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.settlement-remove-button:hover {
+  border-color: #e4aaaa;
+  color: #b33b3b;
+}
+
+.settlement-expense-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(150px, 1fr) minmax(150px, 1fr);
+  gap: 13px;
+}
+
+.settlement-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settlement-field > span:first-child {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.settlement-field > input,
+.settlement-field > select {
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  outline: none;
+  background: #fff;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+
+.settlement-field > input:focus,
+.settlement-field > select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(91, 92, 226, .1);
+}
+
+.settlement-field .settlement-input-wrap input {
+  height: 42px;
+  font-size: 14px;
+}
+
+.settlement-participant-picker {
+  margin-top: 19px;
+  padding-top: 17px;
+  border-top: 1px solid var(--line);
+}
+
+.settlement-picker-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.settlement-picker-heading span:last-child {
+  color: var(--primary-dark);
+}
+
+.settlement-participant-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.settlement-participant-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.settlement-participant-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.settlement-option-check {
+  display: inline-flex;
+  width: 17px;
+  height: 17px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #cbd0d5;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.settlement-participant-option.selected {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+  font-weight: 700;
+}
+
+.settlement-participant-option.selected .settlement-option-check {
+  border-color: var(--primary);
+  background: var(--primary);
+}
+
+.settlement-participant-option:focus-within {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.settlement-expense-share {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.settlement-expense-share strong {
+  color: var(--primary-dark);
+  font-size: 14px;
+}
+
+.settlement-expense-included {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.settlement-empty-large {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  padding: 38px 20px;
+}
+
+.settlement-empty-icon {
+  display: flex;
+  width: 42px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 13px;
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+  font-size: 24px;
+}
+
+.settlement-empty-large strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.settlement-empty-large p {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.settlement-picker-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.settlement-receive {
+  color: #178653 !important;
+}
+
+.settlement-pay {
+  color: #bd4c4c !important;
+}
+
+@media (max-width: 760px) {
+  .settlement-expense-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .settlement-field-title {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 520px) {
+  .settlement-section-heading {
+    align-items: flex-start;
+  }
+
+  .settlement-section-heading p {
+    max-width: 250px;
+  }
+
+  .settlement-add-button {
+    padding: 10px 11px;
+    font-size: 12px;
+  }
+
+  .settlement-expense-card {
+    padding: 14px;
+  }
+
+  .settlement-expense-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .settlement-field-title {
+    grid-column: auto;
+  }
+
+  .settlement-participant-options {
+    gap: 6px;
+  }
+
+  .settlement-participant-option {
+    padding: 8px 10px;
+  }
+}
+
