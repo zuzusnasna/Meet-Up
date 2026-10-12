@@ -11,6 +11,11 @@ const getRoomId = () => {
   return savedRoomId || null;
 };
 
+const getFinalStorageKey = () => {
+  const roomId = getRoomId();
+  return roomId ? FINAL_KEY_PREFIX + roomId : null;
+};
+
 const isOwner = () => document.querySelector(".room-header-actions span")?.textContent.includes("방장");
 
 const getCandidates = () => {
@@ -91,7 +96,6 @@ const buildLadder = (candidates) => {
   ).join("");
 
   return {
-    start,
     winnerIndex: result.winnerIndex,
     winner: candidates[result.winnerIndex],
     html: `
@@ -161,17 +165,17 @@ const showTieLadder = (candidates) => {
 };
 
 const saveFinalPlace = (place) => {
-  const roomId = getRoomId();
-  if (!roomId || !place) return;
-  localStorage.setItem(FINAL_KEY_PREFIX + roomId, JSON.stringify(place));
+  const key = getFinalStorageKey();
+  if (!key || !place) return;
+  localStorage.setItem(key, JSON.stringify(place));
   renderFinalPlace(place);
 };
 
 const loadFinalPlace = () => {
-  const roomId = getRoomId();
-  if (!roomId) return null;
+  const key = getFinalStorageKey();
+  if (!key) return null;
   try {
-    return JSON.parse(localStorage.getItem(FINAL_KEY_PREFIX + roomId) || "null");
+    return JSON.parse(localStorage.getItem(key) || "null");
   } catch {
     return null;
   }
@@ -180,6 +184,7 @@ const loadFinalPlace = () => {
 const renderFinalPlace = (place) => {
   const panel = document.querySelector(".candidate-panel");
   if (!panel || !place) return;
+
   let result = panel.querySelector(".final-place-result");
   if (!result) {
     result = document.createElement("div");
@@ -191,6 +196,12 @@ const renderFinalPlace = (place) => {
     <strong>${place.name}</strong>
     <small>${place.address}</small>
   `;
+
+  panel.querySelectorAll(".candidate-item > button").forEach((button) => {
+    button.disabled = true;
+    button.textContent = "마감";
+  });
+  panel.querySelector(`#${FINISH_BUTTON_ID}`)?.remove();
 };
 
 const finishVote = () => {
@@ -223,7 +234,7 @@ const finishVote = () => {
 };
 
 const ensureFinishButton = () => {
-  if (!isOwner()) return;
+  if (!isOwner() || loadFinalPlace()) return;
   const panel = document.querySelector(".candidate-panel");
   if (!panel || panel.querySelector(`#${FINISH_BUTTON_ID}`)) return;
 
@@ -236,9 +247,12 @@ const ensureFinishButton = () => {
 };
 
 const boot = () => {
-  ensureFinishButton();
   const finalPlace = loadFinalPlace();
-  if (finalPlace) renderFinalPlace(finalPlace);
+  if (finalPlace) {
+    renderFinalPlace(finalPlace);
+    return;
+  }
+  ensureFinishButton();
 };
 
 const observer = new MutationObserver(() => boot());
