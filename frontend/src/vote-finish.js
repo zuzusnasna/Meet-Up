@@ -213,8 +213,8 @@ const loadRoomAndUser = async () => {
 
   try {
     const [roomResponse, userResponse] = await Promise.all([
-      fetch(`/api/rooms/${roomId}`),
-      fetch("/api/auth/me"),
+      fetch(`/api/rooms/${roomId}`, { cache: "no-store" }),
+      fetch("/api/auth/me", { cache: "no-store" }),
     ]);
 
     if (!roomResponse.ok || !userResponse.ok) return false;
@@ -270,7 +270,7 @@ const finishVote = async () => {
   await refreshCandidateIds();
   const candidates = getCandidates();
   if (candidates.length === 0) {
-    alert("후보 장소를 먼저 불러와주세요.");
+    alert("후보 장소를 먼저 등록해주세요.");
     return;
   }
 
@@ -312,12 +312,12 @@ const finishVote = async () => {
 
 const ensureFinishButton = () => {
   const panel = document.querySelector(".candidate-panel");
-  if (!panel || !currentRoom || !currentUser) return;
+  if (!panel || !currentRoom) return;
 
   if (currentRoom.voteFinishedAt || lastFinishedPlaceId) return;
+  if (!currentUser) return;
   if (Number(currentRoom.creatorId) !== Number(currentUser.userId)) return;
   if (panel.querySelector(`#${FINISH_BUTTON_ID}`)) return;
-  if (getCandidates().length === 0) return;
 
   const button = document.createElement("button");
   button.id = FINISH_BUTTON_ID;
@@ -330,7 +330,10 @@ const ensureFinishButton = () => {
 const syncVoteResult = async () => {
   await refreshCandidateIds();
   const result = await getVoteResult();
-  if (!result?.finished) return;
+  if (!result?.finished) {
+    ensureFinishButton();
+    return;
+  }
 
   lastFinishedPlaceId = Number(result.finalPlaceId);
   applyVoteResult(result, false);
@@ -338,9 +341,7 @@ const syncVoteResult = async () => {
 
 const boot = async () => {
   if (!getRoomId()) return;
-  if (!currentRoom || !currentUser) {
-    await loadRoomAndUser();
-  }
+  await loadRoomAndUser();
   await refreshCandidateIds();
   ensureFinishButton();
   await syncVoteResult();
@@ -357,4 +358,10 @@ const observer = new MutationObserver(() => {
 observer.observe(document.body, { childList: true, subtree: true });
 window.addEventListener("load", boot);
 boot();
-setInterval(syncVoteResult, 3000);
+setInterval(async () => {
+  if (!currentRoom || !currentUser) {
+    await loadRoomAndUser();
+  }
+  ensureFinishButton();
+  await syncVoteResult();
+}, 3000);
