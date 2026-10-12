@@ -207,22 +207,33 @@ const showTieLadder = (candidates, winnerIndex) => {
   }, 3600);
 };
 
-const loadRoomAndUser = async () => {
+const loadRoom = async () => {
   const roomId = getRoomId();
   if (!roomId) return false;
 
   try {
-    const [roomResponse, userResponse] = await Promise.all([
-      fetch(`/api/rooms/${roomId}`, { cache: "no-store" }),
-      fetch("/api/auth/me", { cache: "no-store" }),
-    ]);
-
-    if (!roomResponse.ok || !userResponse.ok) return false;
-    currentRoom = await roomResponse.json();
-    currentUser = await userResponse.json();
+    const response = await fetch(`/api/rooms/${roomId}`, { cache: "no-store" });
+    if (!response.ok) return false;
+    currentRoom = await response.json();
     return true;
   } catch (error) {
-    console.error("투표 마감 준비 실패", error);
+    console.error("모임방 조회 실패", error);
+    return false;
+  }
+};
+
+const loadCurrentUser = async () => {
+  try {
+    const response = await fetch("/api/auth/me", { cache: "no-store" });
+    if (!response.ok) {
+      currentUser = null;
+      return false;
+    }
+    currentUser = await response.json();
+    return true;
+  } catch (error) {
+    console.error("사용자 조회 실패", error);
+    currentUser = null;
     return false;
   }
 };
@@ -267,6 +278,15 @@ const finishVote = async () => {
   const roomId = getRoomId();
   if (!roomId) return;
 
+  // 방장 여부는 주기적으로 확인하지 않고, 실제 투표 마감 클릭 시점에만 확인한다.
+  await loadCurrentUser();
+  await loadRoom();
+
+  if (!currentUser || Number(currentRoom?.creatorId) !== Number(currentUser.userId)) {
+    alert("투표 마감 권한이 없습니다.");
+    return;
+  }
+
   await refreshCandidateIds();
   const candidates = getCandidates();
   if (candidates.length === 0) {
@@ -281,7 +301,7 @@ const finishVote = async () => {
   }
 
   try {
-    const response = await fetch(`/api/rooms/${roomId}/vote-finish?userId=${currentUser?.userId ?? ""}`, {
+    const response = await fetch(`/api/rooms/${roomId}/vote-finish?userId=${currentUser.userId}`, {
       method: "POST",
     });
 
@@ -312,12 +332,9 @@ const finishVote = async () => {
 
 const ensureFinishButton = () => {
   const panel = document.querySelector(".candidate-panel");
-  if (!panel || !currentRoom) return;
-
-  if (currentRoom.voteFinishedAt || lastFinishedPlaceId) return;
-  if (!currentUser) return;
-  if (Number(currentRoom.creatorId) !== Number(currentUser.userId)) return;
+  if (!panel) return;
   if (panel.querySelector(`#${FINISH_BUTTON_ID}`)) return;
+  if (currentRoom?.voteFinishedAt || lastFinishedPlaceId) return;
 
   const button = document.createElement("button");
   button.id = FINISH_BUTTON_ID;
@@ -341,8 +358,7 @@ const syncVoteResult = async () => {
 
 const boot = async () => {
   if (!getRoomId()) return;
-  await loadRoomAndUser();
-  await refreshCandidateIds();
+  await loadRoom();
   ensureFinishButton();
   await syncVoteResult();
 };
@@ -358,10 +374,4 @@ const observer = new MutationObserver(() => {
 observer.observe(document.body, { childList: true, subtree: true });
 window.addEventListener("load", boot);
 boot();
-setInterval(async () => {
-  if (!currentRoom || !currentUser) {
-    await loadRoomAndUser();
-  }
-  ensureFinishButton();
-  await syncVoteResult();
-}, 3000);
+setInterval(syncVoteResult, 3000);
