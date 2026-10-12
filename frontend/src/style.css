@@ -55,7 +55,8 @@ textarea:focus-visible {
    ========================= */
 
 .app {
-  width: min(1600px, 100%);
+  width: 100%;
+  max-width: 1600px;
   min-height: 100vh;
   margin: 0 auto;
   padding: 24px 28px 40px;
@@ -99,7 +100,7 @@ textarea:focus-visible {
   color: var(--primary) !important;
   font-size: 11px !important;
   font-weight: 800;
-  letter-spacing: 1.5px;
+  letter-spacing: 2px;
 }
 
 .room-header-actions {
@@ -591,7 +592,8 @@ textarea:focus-visible {
 }
 
 .room-entry-card {
-  width: min(450px, 100%);
+  width: 100%;
+  max-width: 450px;
   padding: 40px;
   border: 1px solid var(--line);
   border-radius: 24px;
@@ -715,7 +717,8 @@ textarea:focus-visible {
 
 .route-modal-content,
 .memo-modal-content {
-  width: min(460px, 100%);
+  width: 100%;
+  max-width: 460px;
   padding: 27px;
   border: 1px solid rgba(255,255,255,0.6);
   border-radius: 20px;
@@ -777,8 +780,9 @@ textarea:focus-visible {
 }
 
 .nearby-modal-content {
-  width: min(650px, 100%);
-  max-height: min(720px, 90vh);
+  width: 100%;
+  max-width: 650px;
+  max-height: 90vh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
