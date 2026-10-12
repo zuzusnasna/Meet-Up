@@ -247,6 +247,13 @@ export default function CandidatePanel({
             <b>최종 득표 {Number(voteResult.finalVoteCount) || 0}표</b>
             <small className="final-place-map-hint">눌러서 지도에서 위치 확인</small>
           </button>
+          <button
+            type="button"
+            className="final-place-directions-button"
+            onClick={() => onSetRouteTarget?.(finalPlace)}
+          >
+            🧭 최종 목적지까지 길찾기
+          </button>
         </section>
         <FinalPlaceMarker map={map} place={finalPlace} onFocus={onFocusMap} />
         {showLadder && (
