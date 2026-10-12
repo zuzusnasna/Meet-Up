@@ -46,8 +46,24 @@ export default function OriginPanel({
         </div>
       )}
 
-      <button onClick={onFindMidpoint} disabled={locations.length < 2} className="full-width-spaced-button">
-        📍 중간지점 정하기
+      <button
+        type="button"
+        onClick={onFindMidpoint}
+        disabled={locations.length < 2}
+        className="midpoint-action"
+      >
+        <span className="midpoint-action-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+            <circle cx="12" cy="12" r="6.5" stroke="currentColor" strokeWidth="1.7" />
+            <circle cx="12" cy="12" r="2" fill="currentColor" />
+          </svg>
+        </span>
+        <span className="midpoint-action-copy">
+          <strong>중간지점 찾기</strong>
+          <span>{locations.length < 2 ? "출발지를 2곳 이상 등록해 주세요" : "모두의 출발지를 기준으로 위치 계산"}</span>
+        </span>
+        <span className="midpoint-action-arrow" aria-hidden="true">→</span>
       </button>
 
       {midpoint && (
