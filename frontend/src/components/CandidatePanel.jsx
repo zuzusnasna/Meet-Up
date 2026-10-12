@@ -1,28 +1,103 @@
 import { useEffect, useMemo, useState } from "react";
 import FinalPlaceMarker from "./FinalPlaceMarker";
 
+function tracePath(start, count, rungs, rows) {
+  let column = start;
+  const path = [{ row: 0, column }];
+
+  for (let row = 0; row < rows; row += 1) {
+    const right = rungs.find((rung) => rung.row === row && rung.column === column);
+    const left = rungs.find((rung) => rung.row === row && rung.column === column - 1);
+
+    if (right) {
+      path.push({ row: row + 0.5, column });
+      column += 1;
+      path.push({ row: row + 1, column });
+    } else if (left) {
+      path.push({ row: row + 0.5, column });
+      column -= 1;
+      path.push({ row: row + 1, column });
+    } else {
+      path.push({ row: row + 1, column });
+    }
+  }
+
+  return { path, winnerIndex: Math.max(0, Math.min(count - 1, column)) };
+}
+
 function LadderModal({ candidates, winnerId, onClose }) {
-  const winner = candidates.find((candidate) => Number(candidate.placeId) === Number(winnerId));
-  const columns = Math.max(candidates.length, 2);
-  const width = Math.max(300, columns * 110);
-  const x = (index) => 35 + ((width - 70) * index) / (columns - 1);
-  const rungs = useMemo(() => {
-    const generated = [];
-    for (let row = 0; row < 8; row += 1) {
-      for (let column = 0; column < candidates.length - 1; column += 1) {
-        if (Math.random() > 0.62) {
-          if (generated.some((rung) => rung.row === row && Math.abs(rung.column - column) <= 1)) continue;
-          generated.push({ row, column });
+  const [running, setRunning] = useState(false);
+  const [complete, setComplete] = useState(false);
+  const ladder = useMemo(() => {
+    const count = candidates.length;
+    const rows = 8;
+    const winnerIndex = Math.max(
+      0,
+      candidates.findIndex((candidate) => Number(candidate.placeId) === Number(winnerId))
+    );
+    const createRungs = () => {
+      const rungs = [];
+      for (let row = 0; row < rows; row += 1) {
+        const used = new Set();
+        for (let column = 0; column < count - 1; column += 1) {
+          if (used.has(column - 1) || used.has(column) || used.has(column + 1)) continue;
+          if (Math.random() < 0.58) {
+            rungs.push({ row, column });
+            used.add(column);
+          }
         }
       }
+      return rungs;
+    };
+
+    let startIndex = winnerIndex;
+    let rungs = createRungs();
+    let trace = tracePath(startIndex, count, rungs, rows);
+    for (let attempt = 0; attempt < 100 && trace.winnerIndex !== winnerIndex; attempt += 1) {
+      startIndex = Math.floor(Math.random() * count);
+      rungs = createRungs();
+      trace = tracePath(startIndex, count, rungs, rows);
     }
-    return generated;
-  }, [candidates.length]);
+
+    const width = Math.max(300, count * 110);
+    const height = 390;
+    const x = (column) => 35 + ((width - 70) * column) / Math.max(1, count - 1);
+    const y = (row) => 52 + ((height - 92) * row) / rows;
+    return {
+      count,
+      rows,
+      width,
+      height,
+      rungs,
+      startIndex,
+      winnerIndex,
+      points: trace.path.map((point) => `${x(point.column)},${y(point.row)}`).join(" "),
+      x,
+      y,
+    };
+  }, [candidates, winnerId]);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setRunning(true));
+    const timer = window.setTimeout(() => setComplete(true), 3600);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+    };
+  }, []);
+
+  const winner = candidates.find((candidate) => Number(candidate.placeId) === Number(winnerId));
 
   return (
-    <div className="vote-finish-modal" role="dialog" aria-modal="true" aria-labelledby="tie-title" onClick={(event) => {
-      if (event.target === event.currentTarget) onClose();
-    }}>
+    <div
+      className="vote-finish-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="tie-title"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
       <div className="vote-finish-card ladder-card">
         <div className="vote-finish-header">
           <div>
@@ -36,35 +111,40 @@ function LadderModal({ candidates, winnerId, onClose }) {
           {candidates.map((candidate) => <span key={candidate.placeId}>{candidate.placeName}</span>)}
         </div>
         <div className="ladder-stage">
-          <div className="ladder-board" style={{ width }}>
+          <div className="ladder-board" style={{ width: ladder.width }}>
             <div className="ladder-top-labels">
               {candidates.map((candidate, index) => (
-                <div className="ladder-top-label" key={candidate.placeId} style={{ left: `${(x(index) / width) * 100}%` }}>
+                <div className="ladder-top-label" key={candidate.placeId} style={{ left: `${(ladder.x(index) / ladder.width) * 100}%` }}>
                   {candidate.placeName}
                 </div>
               ))}
             </div>
-            <svg className="ladder-svg" viewBox={`0 0 ${width} 390`} role="img" aria-label="사다리 게임 결과">
+            <svg className="ladder-svg" viewBox={`0 0 ${ladder.width} ${ladder.height}`} role="img" aria-label="사다리 게임">
               {candidates.map((candidate, index) => (
-                <line key={`v-${candidate.placeId}`} x1={x(index)} y1="52" x2={x(index)} y2="350" className="ladder-line" />
+                <line key={`v-${candidate.placeId}`} x1={ladder.x(index)} y1="52" x2={ladder.x(index)} y2={ladder.height - 40} className="ladder-line" />
               ))}
-              {rungs.map((rung, index) => (
-                <line key={index} x1={x(rung.column)} y1={52 + (298 * (rung.row + 1)) / 9} x2={x(rung.column + 1)} y2={52 + (298 * (rung.row + 1)) / 9} className="ladder-rung" />
+              {ladder.rungs.map((rung, index) => (
+                <line key={index} x1={ladder.x(rung.column)} y1={ladder.y(rung.row + 0.5)} x2={ladder.x(rung.column + 1)} y2={ladder.y(rung.row + 0.5)} className="ladder-rung" />
               ))}
-              <circle cx={x(Math.max(0, candidates.findIndex((candidate) => Number(candidate.placeId) === Number(winnerId))))} cy="350" r="9" className="ladder-end" style={{ opacity: 1 }} />
+              <polyline points={ladder.points} className={`ladder-path ${running ? "running" : ""}`} />
+              <circle cx={ladder.x(ladder.startIndex)} cy="52" r="8" className="ladder-start" />
+              <circle cx={ladder.x(ladder.winnerIndex)} cy={ladder.height - 40} r="9" className="ladder-end" style={{ opacity: complete ? 1 : 0 }} />
             </svg>
             <div className="ladder-bottom-labels">
-              {candidates.map((candidate) => (
-                <div key={candidate.placeId}>{Number(candidate.placeId) === Number(winnerId) ? "🎉 최종 장소" : candidate.placeName}</div>
+              {candidates.map((candidate, index) => (
+                <div key={candidate.placeId}>{index === ladder.winnerIndex ? "🎉 최종 장소" : candidate.placeName}</div>
               ))}
             </div>
           </div>
         </div>
-        <div className="ladder-result">
-          <strong>🎉 {winner?.placeName || "최종 장소"}</strong>
-          <span>{winner?.address}</span>
-          <em>최종 약속장소로 결정되었습니다.</em>
-        </div>
+        <div className="ladder-status">{complete ? "사다리 게임 결과가 나왔습니다!" : "사다리를 타는 중..."}</div>
+        {complete && (
+          <div className="ladder-result" aria-live="polite">
+            <strong>🎉 {winner?.placeName || "최종 장소"}</strong>
+            <span>{winner?.address}</span>
+            <em>최종 약속장소로 결정되었습니다.</em>
+          </div>
+        )}
       </div>
     </div>
   );
