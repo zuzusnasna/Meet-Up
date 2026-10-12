@@ -447,11 +447,17 @@ function App() {
     setWeatherLoading(true);
 
     try {
+      const latitude = place.y ?? place.latitude;
+      const longitude = place.x ?? place.longitude;
+      if (latitude == null || longitude == null) {
+        throw new Error("날씨를 조회할 좌표가 없습니다.");
+      }
+
       const response = await fetch(
         "/api/weather?latitude=" +
-          encodeURIComponent(place.y) +
+          encodeURIComponent(latitude) +
           "&longitude=" +
-          encodeURIComponent(place.x)
+          encodeURIComponent(longitude)
       );
 
       if (!response.ok) {
@@ -466,6 +472,11 @@ function App() {
       setWeatherLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!finalPlace || activeTab !== "meeting") return;
+    loadWeather(finalPlace);
+  }, [finalPlace?.placeId, finalPlace?.latitude, finalPlace?.longitude, activeTab]);
 
   const focusMapOnPosition = useCallback((latitude, longitude) => {
     if (!map || !window.kakao?.maps) return;
@@ -1097,7 +1108,16 @@ function App() {
         <div className="map-column">
           <div ref={mapRef} className="map" />
           {finalPlace && activeTab === "meeting" && (
-            <FinalPlaceNearby key={finalPlace.placeId} map={map} place={finalPlace} onFocus={focusMapOnPosition} />
+            <>
+              <WeatherPanel
+                weather={weather}
+                loading={weatherLoading}
+                getWeatherText={getWeatherText}
+                title="최종 약속장소 주변 날씨"
+                subtitle={finalPlace.placeName}
+              />
+              <FinalPlaceNearby key={finalPlace.placeId} map={map} place={finalPlace} onFocus={focusMapOnPosition} />
+            </>
           )}
         </div>
 
@@ -1126,7 +1146,7 @@ function App() {
             onSetRouteTarget={setRouteTarget}
           />
 
-          {selectedPlace && (
+          {selectedPlace && !finalPlace && (
             <WeatherPanel
               weather={weather}
               loading={weatherLoading}
