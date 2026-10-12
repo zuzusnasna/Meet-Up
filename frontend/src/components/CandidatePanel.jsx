@@ -128,7 +128,7 @@ function LadderModal({ candidates, winnerId, onClose }) {
               ))}
               <polyline points={ladder.points} className={`ladder-path ${running ? "running" : ""}`} />
               <circle cx={ladder.x(ladder.startIndex)} cy="52" r="8" className="ladder-start" />
-              <circle cx={ladder.x(ladder.winnerIndex)} cy={ladder.height - 40} r="9" className="ladder-end" style={{ opacity: complete ? 1 : 0 }} />
+              <circle cx={ladder.x(ladder.winnerIndex)} cy={ladder.height - 40} r="9" className="ladder-end" />
             </svg>
             <div className="ladder-bottom-labels">
               {candidates.map((candidate, index) => (
