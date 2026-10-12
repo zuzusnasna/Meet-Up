@@ -1081,6 +1081,18 @@ function App() {
         onLogout={logout}
       />
 
+      {finalPlace && activeTab === "meeting" && (
+        <div className="top-weather-panel">
+          <WeatherPanel
+            weather={weather}
+            loading={weatherLoading}
+            getWeatherText={getWeatherText}
+            title="최종 약속장소 주변 날씨"
+            subtitle={finalPlace.placeName}
+          />
+        </div>
+      )}
+
       <nav className="top-nav" aria-label="주요 메뉴">
         <button
           type="button"
@@ -1108,16 +1120,12 @@ function App() {
         <div className="map-column">
           <div ref={mapRef} className="map" />
           {finalPlace && activeTab === "meeting" && (
-            <>
-              <WeatherPanel
-                weather={weather}
-                loading={weatherLoading}
-                getWeatherText={getWeatherText}
-                title="최종 약속장소 주변 날씨"
-                subtitle={finalPlace.placeName}
-              />
-              <FinalPlaceNearby key={finalPlace.placeId} map={map} place={finalPlace} onFocus={focusMapOnPosition} />
-            </>
+            <FinalPlaceNearby
+              key={finalPlace.placeId}
+              map={map}
+              place={finalPlace}
+              onFocus={focusMapOnPosition}
+            />
           )}
         </div>
 
