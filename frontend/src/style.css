@@ -2570,10 +2570,13 @@ textarea:focus-visible {
 }
 
 .header-weather-inline {
-  display: flex;
-  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-content: center;
   align-items: center;
-  flex-wrap: wrap;
+  min-width: 0;
+  width: min(390px, 100%);
+  flex: 0 1 390px;
   column-gap: 14px;
   row-gap: 7px;
   margin-left: 2px;
@@ -2592,6 +2595,7 @@ textarea:focus-visible {
 }
 
 .header-weather-label {
+  grid-column: 1 / -1;
   color: var(--text);
   font-weight: 750;
 }
