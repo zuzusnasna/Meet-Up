@@ -6,6 +6,7 @@ import SearchPanel from "./components/SearchPanel";
 import OriginPanel from "./components/OriginPanel";
 import WeatherPanel from "./components/WeatherPanel";
 import RoomEntry from "./components/RoomEntry";
+import SettlementPanel from "./components/SettlementPanel";
 
 const KAKAO_JS_KEY = import.meta.env.VITE_KAKAO_JS_KEY;
 
@@ -127,6 +128,7 @@ function App() {
   const [memoModal, setMemoModal] = useState(null);
   const [memoContent, setMemoContent] = useState("");
   const [memoType, setMemoType] = useState("GENERAL");
+  const [activeTab, setActiveTab] = useState("meeting");
 
   const loadCurrentUser = async () => {
     try {
@@ -1067,16 +1069,29 @@ function App() {
       />
 
       <nav className="top-nav" aria-label="주요 메뉴">
-        <a className="top-nav-link active" href="#meeting-place">
+        <button
+          type="button"
+          className={"top-nav-link" + (activeTab === "meeting" ? " active" : "")}
+          onClick={() => setActiveTab("meeting")}
+          aria-current={activeTab === "meeting" ? "page" : undefined}
+        >
           약속장소 정하기
-        </a>
+        </button>
+        <button
+          type="button"
+          className={"top-nav-link" + (activeTab === "settlement" ? " active" : "")}
+          onClick={() => setActiveTab("settlement")}
+          aria-current={activeTab === "settlement" ? "page" : undefined}
+        >
+          정산하기
+        </button>
       </nav>
 
       <div className="top-participants-panel">
         <ParticipantsPanel participants={participants} userId={userId} />
       </div>
 
-      <div className="content" id="meeting-place">
+      <div className={"content" + (activeTab === "settlement" ? " content-hidden" : "")} id="meeting-place">
         <div ref={mapRef} className="map" />
 
         <aside className="sidebar">
@@ -1312,6 +1327,9 @@ function App() {
         )}
 
       </div>
+      {activeTab === "settlement" && (
+        <SettlementPanel roomId={roomId} participants={participants} />
+      )}
     </div>
   );
 }
