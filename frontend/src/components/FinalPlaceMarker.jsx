@@ -84,38 +84,39 @@ export default function FinalPlaceMarker({ map, place, onFocus }) {
             position: itemPosition,
             image: nearbyMarkerImage(category),
             title: item.title || (category === "TOURIST" ? "관광지" : "맛집"),
-            zIndex: category === "TOURIST" ? 5 : 6,
+            zIndex: 1,
           });
           const categoryLabel = category === "TOURIST" ? "관광지" : "맛집";
           const detailRows = [
             item.address ? escapeHtml(item.address) : "",
             item.phone ? escapeHtml(item.phone) : "",
           ].filter(Boolean);
-          const link = item.placeUrl
-            ? '<a href="' + escapeHtml(item.placeUrl) + '" target="_blank" rel="noopener noreferrer" style="display:inline-block;margin-top:6px;color:' +
-              (category === "TOURIST" ? "#356b4a" : "#b95e35") +
-              ';font-size:11px;font-weight:700;text-decoration:none">지도에서 보기 ↗</a>'
-            : "";
           const itemInfoWindow = new window.kakao.maps.InfoWindow({
+            zIndex: 1000,
             content:
-              '<div class="info-window" style="min-width:150px;max-width:230px;padding:10px 12px">' +
+              '<div class="info-window nearby-marker-info" style="position:relative;z-index:1000;min-width:150px;max-width:230px;padding:10px 12px;background:#fff;border:1px solid #e3e5df;border-radius:8px;box-shadow:0 4px 16px rgba(25,35,27,.18)">' +
               '<div style="margin-bottom:5px;color:' + (category === "TOURIST" ? "#356b4a" : "#b95e35") +
               ';font-size:10px;font-weight:800">' + categoryLabel + "</div>" +
               '<strong style="font-size:13px">' + escapeHtml(item.title || categoryLabel) + "</strong>" +
               (detailRows.length ? '<div style="margin-top:4px;color:#687168;font-size:11px;line-height:1.5">' + detailRows.join("<br/>") + "</div>" : "") +
-              link +
               "</div>",
           });
 
           window.kakao.maps.event.addListener(itemMarker, "mouseover", () => {
+            itemInfoWindow.setZIndex(1000);
             itemInfoWindow.open(map, itemMarker);
           });
           window.kakao.maps.event.addListener(itemMarker, "mouseout", () => {
             itemInfoWindow.close();
           });
           window.kakao.maps.event.addListener(itemMarker, "click", () => {
+            if (item.placeUrl) {
+              window.open(item.placeUrl, "_blank", "noopener,noreferrer");
+              return;
+            }
             map.setCenter(itemPosition);
             map.setLevel(4);
+            itemInfoWindow.setZIndex(1000);
             itemInfoWindow.open(map, itemMarker);
           });
 
