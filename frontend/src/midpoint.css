@@ -1,0 +1,49 @@
+/* 추천 중간지점 표시를 검색 결과 카드와 분리해서 자연스럽게 보이도록 조정 */
+.panel > button + .selected-place {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 4px;
+  margin: 10px 0 0;
+  padding: 14px 16px;
+  border: 1px solid #e7e8f8;
+  border-radius: 12px;
+  background: #fafaff;
+}
+
+.panel > button + .selected-place > div {
+  width: 100%;
+}
+
+.panel > button + .selected-place .selected-label {
+  margin-bottom: 4px;
+}
+
+.panel > button + .selected-place strong {
+  display: block;
+  max-width: none;
+  overflow: visible;
+  color: #4d5362;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* 지도 정보창도 한 줄로 길게 붙지 않고 제목/주소가 자연스럽게 보이도록 조정 */
+.info-window {
+  min-width: 120px;
+  max-width: 260px;
+  padding: 9px 12px;
+  color: #20242c;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: normal;
+  word-break: keep-all;
+}
+
+.info-window strong {
+  display: inline-block;
+  margin-bottom: 2px;
+  font-weight: 800;
+}
