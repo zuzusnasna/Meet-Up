@@ -47,6 +47,7 @@
 }
 
  .final-place-result {
+  width: calc(100% - 26px);
   margin: 13px;
   text-align: left;
   cursor: pointer;
