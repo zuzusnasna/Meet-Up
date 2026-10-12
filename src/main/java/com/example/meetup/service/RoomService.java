@@ -3,6 +3,7 @@ package com.example.meetup.service;
 import com.example.meetup.entity.Room;
 import com.example.meetup.entity.RoomParticipant;
 import com.example.meetup.dto.RoomParticipantResponse;
+import com.example.meetup.dto.RoomResponse;
 import com.example.meetup.repository.UserRepository;
 import com.example.meetup.repository.RoomParticipantRepository;
 import com.example.meetup.repository.RoomRepository;
@@ -20,7 +21,7 @@ public class RoomService {
     private final RoomParticipantRepository roomParticipantRepository;
     private final UserRepository userRepository;
 
-    public Room createRoom(String roomName, Long creatorId) {
+    public RoomResponse createRoom(String roomName, Long creatorId) {
         Room room = Room.builder()
                 .roomName(roomName)
                 .creatorId(creatorId)
@@ -37,16 +38,17 @@ public class RoomService {
 
         roomParticipantRepository.save(participant);
 
-        return savedRoom;
+        return toRoomResponse(savedRoom);
     }
 
-    public Room findById(Long roomId) {
-        return roomRepository.findById(roomId)
+    public RoomResponse findById(Long roomId) {
+        Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new IllegalArgumentException("모임방을 찾을 수 없습니다."));
+        return toRoomResponse(room);
     }
 
     public RoomParticipant joinRoom(Long roomId, Long userId) {
-        findById(roomId);
+        findRoom(roomId);
 
         return roomParticipantRepository.findByRoomIdAndUserId(roomId, userId)
                 .orElseGet(() -> roomParticipantRepository.save(
@@ -75,5 +77,16 @@ public class RoomService {
                                 null
                         )))
                 .toList();
+    }
+
+    private Room findRoom(Long roomId) {
+        return roomRepository.findById(roomId)
+                .orElseThrow(() -> new IllegalArgumentException("모임방을 찾을 수 없습니다."));
+    }
+
+    private RoomResponse toRoomResponse(Room room) {
+        return userRepository.findById(room.getCreatorId())
+                .map(user -> RoomResponse.of(room, user.getName(), user.getProvider()))
+                .orElseGet(() -> RoomResponse.of(room, null, null));
     }
 }
