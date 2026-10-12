@@ -1,4 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import RoomHeader from "./components/RoomHeader";
+import ParticipantsPanel from "./components/ParticipantsPanel";
+import CandidatePanel from "./components/CandidatePanel";
 
 const KAKAO_JS_KEY = import.meta.env.VITE_KAKAO_JS_KEY;
 
@@ -456,7 +459,7 @@ function App() {
     }
   };
 
-  const focusMapOnPosition = (latitude, longitude) => {
+  const focusMapOnPosition = useCallback((latitude, longitude) => {
     if (!map || !window.kakao?.maps) return;
 
     const lat = Number(latitude);
@@ -465,7 +468,7 @@ function App() {
 
     map.setCenter(new window.kakao.maps.LatLng(lat, lng));
     map.setLevel(4);
-  };
+  }, [map]);
 
   const selectPlace = (place) => {
     setSelectedPlace(place);
@@ -1128,34 +1131,20 @@ function App() {
 
   return (
     <div className="app">
-      <header className="app-header">
-        <div>
-          <p className="eyebrow">LOCATION · VOTE · MEET</p>
-          <h1>Meet-Up</h1>
-          <p>{currentRoom?.roomName || "함께 만날 장소를 검색하고 후보를 정해보세요."}</p>
-        </div>
-        <div className="room-header-actions">
-          <span>
-            {currentUser.name || currentUser.email || "사용자"} ·{" "}
-            {isRoomOwner ? "방장" : "참여자"} · 방 ID: {roomId}
-          </span>
-          <button onClick={copyInviteLink}>
-            {inviteCopied ? "복사 완료!" : "🔗 초대 링크"}
-          </button>
-          <button
-            onClick={() => {
-              localStorage.removeItem("meetupRoomId");
-              setRoomId(null);
-              setCurrentRoom(null);
-            }}
-          >
-            방 나가기
-          </button>
-          <button onClick={logout}>
-            로그아웃
-          </button>
-        </div>
-      </header>
+      <RoomHeader
+        currentRoom={currentRoom}
+        currentUser={currentUser}
+        isRoomOwner={isRoomOwner}
+        roomId={roomId}
+        inviteCopied={inviteCopied}
+        onCopyInvite={copyInviteLink}
+        onLeaveRoom={() => {
+          localStorage.removeItem("meetupRoomId");
+          setRoomId(null);
+          setCurrentRoom(null);
+        }}
+        onLogout={logout}
+      />
 
       <div className="search-box">
         <input
@@ -1229,36 +1218,7 @@ function App() {
             )}
           </section>
 
-          <section className="panel participants-panel">
-            <div className="panel-title">
-              <div>
-                <h2>👥 참여자</h2>
-                <span>{participants.length}명 참여 중</span>
-              </div>
-            </div>
-
-            {participants.length === 0 ? (
-              <div className="empty-state">
-                <span>👤</span>
-                <p>아직 참여자가 없습니다.</p>
-              </div>
-            ) : (
-              <div className="participant-list">
-                {participants.map((participant) => (
-                  <div
-                    className="participant-item"
-                    key={participant.roomId + "-" + participant.userId}
-                  >
-                    <span className="participant-avatar">👤</span>
-                    <div>
-                      <strong>{participant.userName || "참여자"}</strong>
-                      <span>{participant.userId === userId ? "나" : "참여자"}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
+          <ParticipantsPanel participants={participants} userId={userId} />
 
           <section className="panel">
             <div className="panel-title">
@@ -1404,76 +1364,24 @@ function App() {
             </section>
           )}
 
-          <section className="panel candidate-panel">
-            <div className="panel-title">
-              <div>
-                <h2>모임 장소 후보</h2>
-                <span>{candidates.length}개 후보</span>
-              </div>
-            </div>
-
-            {candidates.length === 0 ? (
-              <div className="empty-state">
-                <span>🗳️</span>
-                <p>검색한 장소를 후보로 등록하세요.</p>
-              </div>
-            ) : (
-              <div className="candidate-list">
-                {candidates.map((candidate) => (
-                  <div
-                    className="candidate-item"
-                    key={candidate.placeId}
-                    onClick={() =>
-                      focusMapOnPosition(candidate.latitude, candidate.longitude)
-                    }
-                    style={{ cursor: "pointer" }}
-                  >
-                    <div className="candidate-info">
-                      <strong>{candidate.placeName}</strong>
-                      <span>{candidate.address}</span>
-                      <span>👤 {candidate.userName || "참여자"} 추천</span>
-                      <b>현재 {voteCounts[candidate.placeId] ?? 0}표</b>
-                      <div className="candidate-actions">
-                        <button onClick={() => openNearby(candidate)}>
-                          🌟 주변 정보
-                        </button>
-                        <button
-                          onClick={() => {
-                            setRouteTarget(candidate);
-                          }}
-                        >
-                          🗺️ 길찾기
-                        </button>
-                        <button
-                          onClick={() => {
-                            setMemoModal({
-                              placeId: candidate.placeId,
-                              latitude: candidate.latitude,
-                              longitude: candidate.longitude,
-                              placeName: candidate.placeName,
-                            });
-                            setMemoContent("");
-                            setMemoType("GENERAL");
-                          }}
-                        >
-                          📍 메모
-                        </button>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => vote(candidate.placeId)}
-                      disabled={votingPlaceId === candidate.placeId}
-                    >
-                      {votingPlaceId === candidate.placeId
-                        ? "..."
-                        : "투표"}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
+          <CandidatePanel
+            roomId={roomId}
+            currentRoom={currentRoom}
+            currentUser={currentUser}
+            candidates={candidates}
+            voteCounts={voteCounts}
+            votingPlaceId={votingPlaceId}
+            onVote={vote}
+            onOpenNearby={openNearby}
+            onSetRouteTarget={setRouteTarget}
+            onSetMemoModal={(modal) => {
+              setMemoModal(modal);
+              setMemoContent("");
+              setMemoType("GENERAL");
+            }}
+            onFocusMap={focusMapOnPosition}
+            map={map}
+          />
         </aside>
         {memoModal && (
           <div className="memo-modal">
