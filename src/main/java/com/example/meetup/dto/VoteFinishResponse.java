@@ -13,4 +13,5 @@ public class VoteFinishResponse {
     private Long finalPlaceId;
     private LocalDateTime finishedAt;
     private boolean tie;
+    private long finalVoteCount;
 }
