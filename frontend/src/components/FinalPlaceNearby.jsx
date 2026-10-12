@@ -101,14 +101,14 @@ export default function FinalPlaceNearby({ map, place, onFocus }) {
         position: new window.kakao.maps.LatLng(itemLatitude, itemLongitude),
         image: makeMarkerImage(category),
         title: item.title || config.label,
-        zIndex: 2,
+        zIndex: 1,
       });
       const details = [
         item.address ? escapeHtml(item.address) : "",
         item.phone ? escapeHtml(item.phone) : "",
       ].filter(Boolean);
       const infoWindow = new window.kakao.maps.InfoWindow({
-        zIndex: 1000,
+        zIndex: 9999,
         content:
           '<div class="info-window nearby-marker-info" style="min-width:150px;max-width:230px;padding:10px 12px;background:#fff;border:1px solid #e3e5df;border-radius:8px;box-shadow:0 4px 16px rgba(25,35,27,.18)">' +
           '<div style="margin-bottom:5px;color:' + config.color + ';font-size:10px;font-weight:800">' + config.label + "</div>" +
@@ -118,8 +118,9 @@ export default function FinalPlaceNearby({ map, place, onFocus }) {
       });
 
       window.kakao.maps.event.addListener(marker, "mouseover", () => {
-        infoWindow.setZIndex(1000);
+        infoWindow.setZIndex(9999);
         infoWindow.open(map, marker);
+        marker.setZIndex(1);
       });
       window.kakao.maps.event.addListener(marker, "mouseout", () => infoWindow.close());
       window.kakao.maps.event.addListener(marker, "click", () => {
