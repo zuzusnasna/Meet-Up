@@ -87,11 +87,16 @@ export default function CandidatePanel({
   const [voteResult, setVoteResult] = useState(null);
   const [finishing, setFinishing] = useState(false);
   const [showLadder, setShowLadder] = useState(false);
-  const [resultLoaded, setResultLoaded] = useState(false);
 
   useEffect(() => {
-    if (!roomId || resultLoaded) return;
+    if (!roomId) {
+      setVoteResult(null);
+      return undefined;
+    }
+
     let active = true;
+    setVoteResult(null);
+
     fetch(`/api/rooms/${roomId}/vote-result`, { cache: "no-store" })
       .then((response) => {
         if (!response.ok) return null;
@@ -100,12 +105,10 @@ export default function CandidatePanel({
       .then((result) => {
         if (active && result?.finished && result.finalPlaceId) setVoteResult(result);
       })
-      .catch((error) => console.error("투표 결과 조회 실패", error))
-      .finally(() => {
-        if (active) setResultLoaded(true);
-      });
+      .catch((error) => console.error("투표 결과 조회 실패", error));
+
     return () => { active = false; };
-  }, [roomId, resultLoaded]);
+  }, [roomId]);
 
   const finalPlace = candidates.find(
     (candidate) => Number(candidate.placeId) === Number(voteResult?.finalPlaceId)
