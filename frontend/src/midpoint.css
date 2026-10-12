@@ -1,13 +1,11 @@
-/* 추천 중간지점 표시를 검색 결과 카드와 분리해서 자연스럽게 보이도록 조정 */
+/* 추천 중간지점은 별도 카드보다 패널 안의 정보 영역처럼 자연스럽게 표시 */
 .panel > button + .selected-place {
-  align-items: flex-start;
-  flex-direction: column;
-  gap: 4px;
-  margin: 10px 0 0;
-  padding: 14px 16px;
-  border: 1px solid #e7e8f8;
-  border-radius: 12px;
-  background: #fafaff;
+  display: block;
+  margin: 12px 0 0;
+  padding: 0 2px 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .panel > button + .selected-place > div {
@@ -15,17 +13,22 @@
 }
 
 .panel > button + .selected-place .selected-label {
-  margin-bottom: 4px;
+  display: block;
+  margin: 0 0 5px;
+  color: #8a91a0;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
 }
 
 .panel > button + .selected-place strong {
   display: block;
   max-width: none;
   overflow: visible;
-  color: #4d5362;
+  color: #3f4552;
   font-size: 13px;
   font-weight: 600;
-  line-height: 1.5;
+  line-height: 1.55;
   white-space: normal;
   overflow-wrap: anywhere;
 }
