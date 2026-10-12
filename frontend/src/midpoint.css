@@ -139,3 +139,107 @@
   margin-bottom: 3px;
   font-weight: 800;
 }
+
+
+/* 중간지점 찾기 주요 액션 */
+.midpoint-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 72px;
+  margin-top: 14px;
+  padding: 14px 15px;
+  border: 1px solid #d9e8de;
+  border-radius: 13px;
+  background: #f4faf6;
+  color: #244d35;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.midpoint-action:hover:not(:disabled) {
+  border-color: #8bbd9b;
+  background: #edf7f0;
+  box-shadow: 0 5px 14px rgba(39, 115, 72, 0.08);
+}
+
+.midpoint-action:active:not(:disabled) {
+  background: #e7f3eb;
+}
+
+.midpoint-action:focus-visible {
+  outline: 2px solid #39865b;
+  outline-offset: 2px;
+}
+
+.midpoint-action:disabled {
+  border-color: #e7e9e7;
+  background: #f7f8f7;
+  color: #9aa19c;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.midpoint-action-icon {
+  display: flex;
+  flex: 0 0 42px;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid #d7e9dd;
+  border-radius: 11px;
+  background: #ffffff;
+  color: #39865b;
+}
+
+.midpoint-action-icon svg {
+  display: block;
+  width: 23px;
+  height: 23px;
+}
+
+.midpoint-action-copy {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.midpoint-action-copy strong {
+  color: inherit;
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.midpoint-action-copy span {
+  color: #78877d;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.midpoint-action:disabled .midpoint-action-copy span {
+  color: #9aa19c;
+}
+
+.midpoint-action-arrow {
+  flex: 0 0 auto;
+  color: #548a66;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.midpoint-action:disabled .midpoint-action-arrow {
+  color: #b8bfba;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .midpoint-action {
+    transition: none;
+  }
+}
