@@ -82,14 +82,6 @@
   font-size: 12px;
 }
 
-/* 최종 장소가 확정되면 후보 제목/3개 후보 영역은 표시하지 않고 최종 박스만 유지 */
-.candidate-panel:has(.final-place-result) > .panel-title,
-.candidate-panel:has(.final-place-result) > .candidate-list,
-.candidate-panel:has(.final-place-result) > .empty-state,
-.candidate-panel:has(.final-place-result) > #meetup-vote-finish-button {
-  display: none !important;
-}
-
 .vote-finish-modal {
   position: fixed;
   inset: 0;
