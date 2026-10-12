@@ -7,6 +7,7 @@ import OriginPanel from "./components/OriginPanel";
 import WeatherPanel from "./components/WeatherPanel";
 import RoomEntry from "./components/RoomEntry";
 import SettlementPanel from "./components/SettlementPanel";
+import FinalPlaceNearby from "./components/FinalPlaceNearby";
 
 const KAKAO_JS_KEY = import.meta.env.VITE_KAKAO_JS_KEY;
 
@@ -129,6 +130,7 @@ function App() {
   const [memoContent, setMemoContent] = useState("");
   const [memoType, setMemoType] = useState("GENERAL");
   const [activeTab, setActiveTab] = useState("meeting");
+  const [finalPlace, setFinalPlace] = useState(null);
 
   const loadCurrentUser = async () => {
     try {
@@ -1092,7 +1094,12 @@ function App() {
       </div>
 
       <div className={"content" + (activeTab === "settlement" ? " content-hidden" : "")} id="meeting-place">
-        <div ref={mapRef} className="map" />
+        <div className="map-column">
+          <div ref={mapRef} className="map" />
+          {finalPlace && activeTab === "meeting" && (
+            <FinalPlaceNearby key={finalPlace.placeId} map={map} place={finalPlace} onFocus={focusMapOnPosition} />
+          )}
+        </div>
 
         <aside className="sidebar">
           <SearchPanel
@@ -1136,6 +1143,7 @@ function App() {
             votingPlaceId={votingPlaceId}
             onVote={vote}
             onOpenNearby={openNearby}
+            onFinalPlaceChange={setFinalPlace}
             onSetRouteTarget={setRouteTarget}
             onSetMemoModal={(modal) => {
               setMemoModal(modal);
