@@ -740,8 +740,21 @@ function App() {
       setMidpoint(nextMidpoint);
       midpointMarkerRef.current = marker;
 
+      const escapeHtml = (value) =>
+        String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+
       const infowindow = new window.kakao.maps.InfoWindow({
-        content: '<div class="info-window"><strong>📍 중간지점</strong><br/>' + address + '</div>',
+        content:
+          '<div class="midpoint-map-info">' +
+          '<div class="midpoint-map-info-title"><span aria-hidden="true">📍</span> 추천 중간 좌표</div>' +
+          '<div class="midpoint-map-info-address">' + escapeHtml(address) + '</div>' +
+          '<div class="midpoint-map-info-note">참여자 출발지 좌표의 평균 위치</div>' +
+          '</div>',
       });
 
       window.kakao.maps.event.addListener(marker, "click", () => {
