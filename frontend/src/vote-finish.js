@@ -7,6 +7,25 @@ let ladderShowing = false;
 
 const getRoomId = () => Number(localStorage.getItem("meetupRoomId")) || null;
 
+const refreshCandidateIds = async () => {
+  const roomId = getRoomId();
+  if (!roomId) return;
+
+  try {
+    const response = await fetch(`/api/place-candidates/room/${roomId}`, { cache: "no-store" });
+    if (!response.ok) return;
+    const candidates = await response.json();
+
+    document.querySelectorAll(".candidate-panel .candidate-item").forEach((card) => {
+      const name = card.querySelector(".candidate-info strong")?.textContent?.trim();
+      const candidate = candidates.find((item) => item.placeName === name);
+      if (candidate) card.dataset.placeId = candidate.placeId;
+    });
+  } catch (error) {
+    console.error("후보 ID 조회 실패", error);
+  }
+};
+
 const getCandidates = () => {
   return [...document.querySelectorAll(".candidate-panel .candidate-item")]
     .map((card) => {
@@ -15,7 +34,7 @@ const getCandidates = () => {
       const voteMatch = voteText.match(/(\d+)표/);
       const votes = voteMatch ? Number(voteMatch[1]) : 0;
       const address = card.querySelector(".candidate-info span")?.textContent?.trim() || "";
-      const placeId = Number(card.dataset.placeId || card.querySelector("button")?.dataset.placeId);
+      const placeId = Number(card.dataset.placeId);
       return name && placeId ? { name, address, votes, placeId } : null;
     })
     .filter(Boolean);
@@ -248,6 +267,13 @@ const finishVote = async () => {
   const roomId = getRoomId();
   if (!roomId) return;
 
+  await refreshCandidateIds();
+  const candidates = getCandidates();
+  if (candidates.length === 0) {
+    alert("후보 장소를 먼저 불러와주세요.");
+    return;
+  }
+
   const button = document.getElementById(FINISH_BUTTON_ID);
   if (button) {
     button.disabled = true;
@@ -263,13 +289,13 @@ const finishVote = async () => {
     if (!response.ok) throw new Error(message || "투표 마감에 실패했습니다.");
 
     const result = JSON.parse(message);
-    const candidates = getCandidates();
     const finalCandidate = findCandidateByPlaceId(result.finalPlaceId);
-
     if (!finalCandidate) throw new Error("최종 장소 정보를 찾을 수 없습니다.");
 
     applyVoteResult(result, result.tie);
     lastFinishedPlaceId = Number(result.finalPlaceId);
+    currentRoom.voteFinishedAt = result.finishedAt;
+    currentRoom.finalPlaceId = result.finalPlaceId;
 
     if (!result.tie) {
       alert(`${finalCandidate.name}이(가) 최종 약속장소로 결정되었습니다!`);
@@ -302,6 +328,7 @@ const ensureFinishButton = () => {
 };
 
 const syncVoteResult = async () => {
+  await refreshCandidateIds();
   const result = await getVoteResult();
   if (!result?.finished) return;
 
@@ -314,7 +341,7 @@ const boot = async () => {
   if (!currentRoom || !currentUser) {
     await loadRoomAndUser();
   }
-
+  await refreshCandidateIds();
   ensureFinishButton();
   await syncVoteResult();
 };
