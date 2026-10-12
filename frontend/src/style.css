@@ -2368,8 +2368,10 @@ textarea:focus-visible {
   gap: 14px;
 }
 .map-column .map {
-  position: sticky;
-  top: 18px;
+  /* 지도 아래 주변 장소 목록과 겹치지 않도록 문서 흐름에 배치 */
+  position: relative;
+  top: auto;
+  align-self: start;
 }
 .final-nearby {
   padding: 18px;
