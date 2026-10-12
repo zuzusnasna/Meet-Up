@@ -51,12 +51,19 @@ export default function OriginPanel({
       </button>
 
       {midpoint && (
-        <div className="selected-place midpoint-summary">
-          <div>
-            <span className="selected-label">추천 중간지점</span>
+        <button
+          type="button"
+          className="midpoint-result-card"
+          onClick={() => onFocusMap(midpoint.latitude, midpoint.longitude)}
+          aria-label="추천 중간 좌표를 지도에서 보기"
+        >
+          <span className="midpoint-result-icon" aria-hidden="true">⌖</span>
+          <span className="midpoint-result-copy">
+            <span className="midpoint-result-eyebrow">추천 중간 좌표</span>
             <strong>{midpoint.address}</strong>
-          </div>
-        </div>
+            <span className="midpoint-result-hint">눌러서 지도에서 위치 확인 <span aria-hidden="true">↗</span></span>
+          </span>
+        </button>
       )}
 
       {midpoint && (
