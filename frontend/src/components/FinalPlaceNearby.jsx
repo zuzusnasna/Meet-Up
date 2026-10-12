@@ -189,11 +189,12 @@ export default function FinalPlaceNearby({ map, place, onFocus }) {
                 if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
                   onFocus(latitude, longitude);
                 }
-                if (item.placeUrl) {
-                  window.open(item.placeUrl, "_blank", "noopener,noreferrer");
-                } else if (item.title) {
+                if (item.title) {
+                  const searchQuery = [item.title, item.address]
+                    .filter(Boolean)
+                    .join(" ");
                   window.open(
-                    "https://search.naver.com/search.naver?query=" + encodeURIComponent(item.title),
+                    "https://search.naver.com/search.naver?query=" + encodeURIComponent(searchQuery),
                     "_blank",
                     "noopener,noreferrer"
                   );
