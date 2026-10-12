@@ -725,12 +725,53 @@ function App() {
       return;
     }
 
-    const latitude =
-      locations.reduce((sum, location) => sum + Number(location.latitude), 0) /
-      locations.length;
-    const longitude =
-      locations.reduce((sum, location) => sum + Number(location.longitude), 0) /
-      locations.length;
+    // 유효한 출발지만 사용해 지구 곡률을 고려한 구면 중심점을 계산합니다.
+    const validLocations = locations
+      .map((location) => ({
+        latitude: Number(location.latitude),
+        longitude: Number(location.longitude),
+      }))
+      .filter(
+        (location) =>
+          Number.isFinite(location.latitude) &&
+          Number.isFinite(location.longitude) &&
+          location.latitude >= -90 &&
+          location.latitude <= 90 &&
+          location.longitude >= -180 &&
+          location.longitude <= 180
+      );
+
+    if (validLocations.length < 2) {
+      alert("유효한 출발지 좌표가 등록된 참여자가 2명 이상이어야 합니다.");
+      return;
+    }
+
+    const vectors = validLocations.map(({ latitude, longitude }) => {
+      const latRadians = (latitude * Math.PI) / 180;
+      const lonRadians = (longitude * Math.PI) / 180;
+      const cosLatitude = Math.cos(latRadians);
+
+      return {
+        x: cosLatitude * Math.cos(lonRadians),
+        y: cosLatitude * Math.sin(lonRadians),
+        z: Math.sin(latRadians),
+      };
+    });
+
+    const average = vectors.reduce(
+      (sum, vector) => ({
+        x: sum.x + vector.x,
+        y: sum.y + vector.y,
+        z: sum.z + vector.z,
+      }),
+      { x: 0, y: 0, z: 0 }
+    );
+
+    const latitude = (Math.atan2(
+      average.z,
+      Math.sqrt(average.x * average.x + average.y * average.y)
+    ) * 180) / Math.PI;
+    const longitude = (Math.atan2(average.y, average.x) * 180) / Math.PI;
 
     const position = new window.kakao.maps.LatLng(latitude, longitude);
 
@@ -768,7 +809,7 @@ function App() {
           '<div class="midpoint-map-info">' +
           '<div class="midpoint-map-info-title"><span aria-hidden="true">📍</span> 추천 중간 좌표</div>' +
           '<div class="midpoint-map-info-address">' + escapeHtml(address) + '</div>' +
-          '<div class="midpoint-map-info-note">참여자 출발지 좌표의 평균 위치</div>' +
+          '<div class="midpoint-map-info-note">참여자 출발지의 지리적 중심점</div>' +
           '</div>',
       });
 
