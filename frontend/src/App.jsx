@@ -456,15 +456,21 @@ function App() {
     }
   };
 
+  const focusMapOnPosition = (latitude, longitude) => {
+    if (!map || !window.kakao?.maps) return;
+
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+    map.setCenter(new window.kakao.maps.LatLng(lat, lng));
+    map.setLevel(4);
+  };
+
   const selectPlace = (place) => {
     setSelectedPlace(place);
     loadWeather(place);
-
-    if (map) {
-      map.setCenter(
-        new window.kakao.maps.LatLng(Number(place.y), Number(place.x))
-      );
-    }
+    focusMapOnPosition(place.y, place.x);
   };
 
   const getWeatherText = (code) => {
@@ -987,6 +993,7 @@ function App() {
 
       window.kakao.maps.event.addListener(marker, "click", () => {
         setSelectedPlace(place);
+        focusMapOnPosition(place.y, place.x);
         infowindow.open(map, marker);
       });
 
@@ -1269,7 +1276,14 @@ function App() {
             ) : (
               <div className="candidate-list">
                 {locations.map((location) => (
-                  <div className="candidate-item" key={location.locationId}>
+                  <div
+                    className="candidate-item"
+                    key={location.locationId}
+                    onClick={() =>
+                      focusMapOnPosition(location.latitude, location.longitude)
+                    }
+                    style={{ cursor: "pointer" }}
+                  >
                     <div className="candidate-info">
                       <strong>
                         {location.userId === userId
@@ -1406,7 +1420,14 @@ function App() {
             ) : (
               <div className="candidate-list">
                 {candidates.map((candidate) => (
-                  <div className="candidate-item" key={candidate.placeId}>
+                  <div
+                    className="candidate-item"
+                    key={candidate.placeId}
+                    onClick={() =>
+                      focusMapOnPosition(candidate.latitude, candidate.longitude)
+                    }
+                    style={{ cursor: "pointer" }}
+                  >
                     <div className="candidate-info">
                       <strong>{candidate.placeName}</strong>
                       <span>{candidate.address}</span>
