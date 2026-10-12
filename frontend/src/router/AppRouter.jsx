@@ -1,5 +1,12 @@
-import { BrowserRouter, Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
-import { useEffect } from "react";
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
+import { useEffect, useState } from "react";
 import App from "../App";
 
 function HomeRoute() {
@@ -17,29 +24,39 @@ function HomeRoute() {
 
 function RoomRoute() {
   const { roomId } = useParams();
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const parsedRoomId = Number(roomId);
+
     if (Number.isFinite(parsedRoomId) && parsedRoomId > 0) {
       localStorage.setItem("meetupRoomId", String(parsedRoomId));
       localStorage.removeItem("pendingInviteRoomId");
     }
+
+    setReady(true);
   }, [roomId]);
 
+  if (!ready) return null;
   return <App />;
 }
 
 function InviteRoute() {
   const { roomId } = useParams();
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const parsedRoomId = Number(roomId);
+
     if (Number.isFinite(parsedRoomId) && parsedRoomId > 0) {
       localStorage.setItem("pendingInviteRoomId", String(parsedRoomId));
       localStorage.removeItem("meetupRoomId");
     }
+
+    setReady(true);
   }, [roomId]);
 
+  if (!ready) return null;
   return <App />;
 }
 
