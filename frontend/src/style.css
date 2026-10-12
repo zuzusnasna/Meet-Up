@@ -1227,3 +1227,21 @@ textarea:focus-visible {
     font-size: 31px;
   }
 }
+
+/* Extracted React panels */
+.selected-place-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.full-width-spaced-button {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.midpoint-summary,
+.station-section {
+  margin-top: 10px;
+}
