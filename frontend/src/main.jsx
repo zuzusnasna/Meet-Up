@@ -3,6 +3,8 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./style.css";
 import "./midpoint.css";
+import "./vote-finish.css";
+import "./vote-finish.js";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
