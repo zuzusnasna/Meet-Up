@@ -110,12 +110,10 @@ export default function FinalPlaceMarker({ map, place, onFocus }) {
             itemInfoWindow.close();
           });
           window.kakao.maps.event.addListener(itemMarker, "click", () => {
-            const searchQuery = [item.title, item.address]
-              .filter(Boolean)
-              .join(" ");
+            const searchQuery = item.title || categoryLabel;
             const naverSearchUrl =
               "https://search.naver.com/search.naver?query=" +
-              encodeURIComponent(searchQuery || item.title || categoryLabel);
+              encodeURIComponent(searchQuery);
             window.open(naverSearchUrl, "_blank", "noopener,noreferrer");
           });
 
