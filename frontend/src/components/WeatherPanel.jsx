@@ -1,10 +1,16 @@
-export default function WeatherPanel({ weather, loading, getWeatherText }) {
+export default function WeatherPanel({
+  weather,
+  loading,
+  getWeatherText,
+  title = "현재 날씨",
+  subtitle = "선택한 장소 기준",
+}) {
   return (
     <section className="panel weather-panel">
       <div className="panel-title">
         <div>
-          <h2>현재 날씨</h2>
-          <span>선택한 장소 기준</span>
+          <h2>{title}</h2>
+          <span>{subtitle}</span>
         </div>
       </div>
       <div className="weather-content">
