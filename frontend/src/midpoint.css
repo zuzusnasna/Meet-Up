@@ -1,59 +1,120 @@
-/* 추천 중간지점은 별도 카드보다 패널 안의 정보 영역처럼 자연스럽게 표시 */
-.panel > button + .selected-place {
-  display: block;
-  margin: 12px 0 0;
-  padding: 0 2px 2px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-
-.panel > button + .selected-place > div {
-  width: 100%;
+/* 추천 중간지점 결과 카드 */
+.midpoint-result-card {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  margin-top: 14px;
+  padding: 15px;
+  text-align: left;
+  border: 1px solid #dfe7e3;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #f7fbf8 0%, #ffffff 100%);
+  box-shadow: 0 3px 10px rgba(35, 74, 54, 0.04);
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
-.panel > button + .selected-place .selected-label {
-  display: inline-block;
-  flex: 0 0 auto;
-  margin: 0;
-  color: #8a91a0;
+.midpoint-result-card:hover {
+  border-color: #9bc9ad;
+  box-shadow: 0 7px 18px rgba(35, 74, 54, 0.09);
+  transform: translateY(-1px);
+}
+
+.midpoint-result-card:focus-visible {
+  outline: 2px solid #39865b;
+  outline-offset: 2px;
+}
+
+.midpoint-result-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: #e3f3e8;
+  color: #277348;
+  font-size: 25px;
+  line-height: 1;
+}
+
+.midpoint-result-copy {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  min-width: 0;
+}
+
+.midpoint-result-eyebrow {
+  color: #39865b;
   font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+}
+
+.midpoint-result-copy strong {
+  display: block;
+  width: 100%;
+  color: #252d28;
+  font-size: 14px;
   font-weight: 700;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.midpoint-result-hint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  color: #7b887f;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.midpoint-result-hint span {
+  font-size: 13px;
+}
+
+/* 카카오 지도 정보창: 제목과 주소를 분리하고 긴 주소는 자연스럽게 줄바꿈 */
+.midpoint-map-info {
+  box-sizing: border-box;
+  width: 220px;
+  max-width: 220px;
+  padding: 12px 14px;
+  color: #26332a;
+  font-family: Arial, sans-serif;
+  white-space: normal;
+}
+
+.midpoint-map-info-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 7px;
+  color: #277348;
+  font-size: 12px;
+  font-weight: 800;
   line-height: 1.4;
 }
 
-.panel > button + .selected-place strong {
-  display: inline-block;
-  flex: 1 1 180px;
-  min-width: 0;
-  max-width: none;
-  overflow: visible;
-  color: #3f4552;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.55;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-/* 지도 정보창도 한 줄로 길게 붙지 않고 제목/주소가 자연스럽게 보이도록 조정 */
-.info-window {
-  min-width: 120px;
-  max-width: 260px;
-  padding: 9px 12px;
-  color: #20242c;
+.midpoint-map-info-address {
+  color: #424b45;
   font-size: 12px;
-  line-height: 1.5;
-  white-space: normal;
-  word-break: keep-all;
+  font-weight: 500;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
-.info-window strong {
-  display: inline-block;
-  margin-bottom: 2px;
-  font-weight: 800;
+.midpoint-map-info-note {
+  margin-top: 7px;
+  color: #8a948d;
+  font-size: 10px;
+  line-height: 1.4;
 }
