@@ -190,9 +190,7 @@ export default function FinalPlaceNearby({ map, place, onFocus }) {
                   onFocus(latitude, longitude);
                 }
                 if (item.title) {
-                  const searchQuery = [item.title, item.address]
-                    .filter(Boolean)
-                    .join(" ");
+                  const searchQuery = item.title;
                   window.open(
                     "https://search.naver.com/search.naver?query=" + encodeURIComponent(searchQuery),
                     "_blank",
