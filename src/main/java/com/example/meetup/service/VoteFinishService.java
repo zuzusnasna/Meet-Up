@@ -15,7 +15,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -32,12 +31,16 @@ public class VoteFinishService {
         validateOwner(room, userId);
 
         if (room.getVoteFinishedAt() != null) {
+            long finalVoteCount = room.getFinalPlaceId() == null
+                    ? 0L
+                    : voteRepository.findByPlaceId(room.getFinalPlaceId()).size();
             return new VoteFinishResponse(
                     roomId,
                     true,
                     room.getFinalPlaceId(),
                     room.getVoteFinishedAt(),
-                    false
+                    false,
+                    finalVoteCount
             );
         }
 
@@ -77,7 +80,8 @@ public class VoteFinishService {
                 true,
                 winner.getPlaceId(),
                 finishedAt,
-                tie
+                tie,
+                maxVotes
         );
     }
 
@@ -85,12 +89,17 @@ public class VoteFinishService {
     public VoteFinishResponse getResult(Long roomId) {
         Room room = findRoom(roomId);
         boolean finished = room.getVoteFinishedAt() != null;
+        long finalVoteCount = finished && room.getFinalPlaceId() != null
+                ? voteRepository.findByPlaceId(room.getFinalPlaceId()).size()
+                : 0L;
+
         return new VoteFinishResponse(
                 roomId,
                 finished,
                 room.getFinalPlaceId(),
                 room.getVoteFinishedAt(),
-                false
+                false,
+                finalVoteCount
         );
     }
 
