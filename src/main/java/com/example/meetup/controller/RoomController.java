@@ -1,8 +1,8 @@
 package com.example.meetup.controller;
 
-import com.example.meetup.entity.Room;
 import com.example.meetup.entity.RoomParticipant;
 import com.example.meetup.dto.RoomParticipantResponse;
+import com.example.meetup.dto.RoomResponse;
 import com.example.meetup.service.RoomService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -17,7 +17,7 @@ public class RoomController {
     private final RoomService roomService;
 
     @PostMapping
-    public Room createRoom(
+    public RoomResponse createRoom(
             @RequestParam String roomName,
             @RequestParam Long creatorId
     ) {
@@ -25,7 +25,7 @@ public class RoomController {
     }
 
     @GetMapping("/{roomId}")
-    public Room findById(@PathVariable Long roomId) {
+    public RoomResponse findById(@PathVariable Long roomId) {
         return roomService.findById(roomId);
     }
 
