@@ -2554,3 +2554,13 @@ textarea:focus-visible {
   opacity: .92;
   transform: translateY(-1px);
 }
+
+
+/* 최종 목적지 날씨를 방 정보 바로 아래 상단에 표시 */
+.top-weather-panel {
+  margin: 0 0 14px;
+}
+
+.top-weather-panel .weather-panel {
+  margin: 0;
+}
