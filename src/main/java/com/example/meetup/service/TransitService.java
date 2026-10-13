@@ -115,7 +115,7 @@ public class TransitService {
 
     private String findTagoStationId(String stationName) {
         JsonNode root = requestJson(
-                "https://apis.data.go.kr/1613000/SubwayInfo/getKwrdFndSubwaySttnList"
+                "https://apis.data.go.kr/1613000/SubwayInfo/GetKwrdFndSubwaySttnList"
                         + "?serviceKey=" + encodedKey()
                         + "&subwayStationName=" + encode(stationName)
                         + "&pageNo=1&numOfRows=20&_type=json"
@@ -137,7 +137,7 @@ public class TransitService {
 
     private JsonNode fetchSchedules(String stationId, String dayType, String direction) {
         JsonNode root = requestJson(
-                "https://apis.data.go.kr/1613000/SubwayInfo/getSubwaySttnAcctoSchdulList"
+                "https://apis.data.go.kr/1613000/SubwayInfo/GetSubwaySttnAcctoSchdulList"
                         + "?serviceKey=" + encodedKey()
                         + "&subwayStationId=" + encode(stationId)
                         + "&dailyTypeCode=" + dayType
