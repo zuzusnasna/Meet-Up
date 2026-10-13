@@ -1,111 +1,142 @@
 import { useEffect, useState } from "react";
 
 export default function LastTrainPanel({ finalPlace, participants = [], locations = [] }) {
-  const [trainResults, setTrainResults] = useState({});
-  const [busResults, setBusResults] = useState({});
+  const [routeResults, setRouteResults] = useState({});
   const [loadingResults, setLoadingResults] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadResults() {
-      if (!finalPlace?.latitude || !finalPlace?.longitude) {
-        setTrainResults({});
-        setBusResults({});
+      if (finalPlace?.latitude == null || finalPlace?.longitude == null) {
+        setRouteResults({});
         return;
       }
 
-      const targets = participants.map((participant) => {
-        const location = locations.find((item) => Number(item.userId) === Number(participant.userId));
-        return { userId: participant.userId, location };
-      }).filter((item) => item.location?.latitude != null && item.location?.longitude != null);
+      const targets = participants.map((participant) => ({
+        userId: participant.userId,
+        location: locations.find((item) => Number(item.userId) === Number(participant.userId)),
+      })).filter((item) => item.location?.latitude != null && item.location?.longitude != null);
 
       setLoadingResults(true);
       const entries = await Promise.all(targets.map(async ({ userId, location }) => {
-        const trainParams = new URLSearchParams({
-          originLatitude: String(location.latitude), originLongitude: String(location.longitude),
-          destinationLatitude: String(finalPlace.latitude), destinationLongitude: String(finalPlace.longitude),
+        const params = new URLSearchParams({
+          meetingLatitude: String(finalPlace.latitude),
+          meetingLongitude: String(finalPlace.longitude),
+          originLatitude: String(location.latitude),
+          originLongitude: String(location.longitude),
         });
-        const busParams = new URLSearchParams({
-          latitude: String(finalPlace.latitude), longitude: String(finalPlace.longitude),
-        });
-
-        const [trainResponse, busResponse] = await Promise.all([
-          fetch("/api/transit/last-train?" + trainParams.toString()),
-          fetch("/api/transit/bus-arrivals?" + busParams.toString()),
-        ]);
-
-        let train = { status: "ERROR", message: "지하철 정보를 불러오지 못했습니다." };
-        let bus = { status: "ERROR", message: "버스 정보를 불러오지 못했습니다." };
-        try { if (trainResponse.ok) train = await trainResponse.json(); } catch (e) { console.error(e); }
-        try { if (busResponse.ok) bus = await busResponse.json(); } catch (e) { console.error(e); }
-        return [userId, { train, bus }];
+        try {
+          const response = await fetch("/api/transit/return-routes?" + params.toString());
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.message || "귀가 경로 조회에 실패했습니다.");
+          return [userId, data];
+        } catch (error) {
+          console.error(error);
+          return [userId, { status: "ERROR", message: error.message || "귀가 경로를 불러오지 못했습니다.", routes: [] }];
+        }
       }));
 
       if (!cancelled) {
-        setTrainResults(Object.fromEntries(entries.map(([id, value]) => [id, value.train])));
-        setBusResults(Object.fromEntries(entries.map(([id, value]) => [id, value.bus])));
+        setRouteResults(Object.fromEntries(entries));
         setLoadingResults(false);
       }
     }
 
-    loadResults().catch((error) => console.error(error));
+    loadResults().catch((error) => {
+      console.error(error);
+      if (!cancelled) setLoadingResults(false);
+    });
     return () => { cancelled = true; };
   }, [finalPlace?.placeId, finalPlace?.latitude, finalPlace?.longitude, participants, locations]);
 
   const routeUrl = (location) => {
     if (!location || !finalPlace) return null;
-    return "https://map.kakao.com/link/by/traffic/" + encodeURIComponent(location.address || "출발지") + "," + location.latitude + "," + location.longitude + "/" + encodeURIComponent(finalPlace.placeName || "최종 약속장소") + "," + finalPlace.latitude + "," + finalPlace.longitude;
+    return "https://map.kakao.com/link/by/traffic/"
+      + encodeURIComponent(finalPlace.placeName || "최종 약속장소") + ","
+      + finalPlace.latitude + "," + finalPlace.longitude + "/"
+      + encodeURIComponent(location.address || "출발지") + ","
+      + location.latitude + "," + location.longitude;
   };
 
-  const formatTrainStatus = (result) => {
-    if (!result) return "시간표 조회 전";
-    if (result.status === "OK" && result.lastDeparture?.departureTime) {
-      const digits = String(result.lastDeparture.departureTime).replace(/[^0-9]/g, "");
-      return digits.length >= 4 ? `${digits.slice(0, 2)}:${digits.slice(2, 4)}` : result.lastDeparture.departureTime;
-    }
-    if (result.status === "STATION_NOT_FOUND") return "주변 역을 찾지 못했습니다";
-    if (result.status === "TAGO_STATION_NOT_FOUND") return "TAGO 역 정보 없음";
-    if (result.status === "DIRECT_ROUTE_NOT_FOUND") return "직통 시간표 없음";
-    return result.message || "막차 시각 확인 불가";
+  const formatTime = (value) => {
+    if (value == null || value === "") return "시간 확인 불가";
+    const digits = String(value).replace(/[^0-9]/g, "");
+    if (digits.length >= 4) return digits.slice(0, 2) + ":" + digits.slice(2, 4);
+    return String(value);
   };
 
-  const formatBusStatus = (result) => {
-    if (!result) return "조회 전";
-    if (result.status !== "OK") return result.message || "버스 조회 실패";
-    const arrivals = Array.isArray(result.arrivals) ? result.arrivals : [];
-    if (!arrivals.length) return "현재 도착예정 버스 없음";
-    const first = arrivals[0];
-    const seconds = Number(first.arrtime);
-    if (Number.isFinite(seconds)) return `${Math.max(0, Math.round(seconds / 60))}분 후 ${first.routeno || "버스"}`;
-    return first.routeno || "도착정보 확인";
+  const modeLabel = (type) => {
+    if (type === "SUBWAY") return "🚇 지하철";
+    if (type === "BUS") return "🚌 버스";
+    if (type === "WALKING") return "🚶 도보";
+    return type || "이동";
+  };
+
+  const formatDuration = (seconds) => {
+    const minutes = Math.round(Number(seconds || 0) / 60);
+    return minutes > 0 ? minutes + "분" : "시간 정보 없음";
   };
 
   return (
     <section className="last-train-page">
       <div className="last-train-heading">
-        <div><span className="last-train-eyebrow">RETURN TRIP</span><h2>막차 안내</h2><p>최종 약속장소에서 참여자별 출발지로 돌아가는 대중교통 정보를 확인합니다.</p></div>
+        <div><span className="last-train-eyebrow">RETURN TRIP</span><h2>막차 안내</h2><p>약속장소에서 참여자별 출발지로 돌아가는 경로와 교통수단별 막차 정보를 확인합니다.</p></div>
         <div className="last-train-destination"><span>최종 약속장소</span><strong>{finalPlace?.placeName || "미정"}</strong><small>{finalPlace?.address || ""}</small></div>
       </div>
       <div className="last-train-notice" role="note">
-        <strong>시간표 안내</strong>
-        <p>지하철은 TAGO 시간표의 직통 운행 후보를 조회합니다. 버스는 약속장소 주변 정류장을 찾은 뒤 TAGO 실시간 도착정보를 조회합니다. 버스 도착정보 API는 운행시간표의 막차 시각을 제공하지 않으므로 임의의 막차 시간은 표시하지 않습니다.</p>
+        <strong>조회 기준</strong>
+        <p>카카오 대중교통 길찾기에서 약속장소 → 출발지 방향의 경로와 환승 구간을 조회합니다. 지하철 막차는 각 구간의 TAGO 시간표 조회 결과이며, 경로의 실제 막차 연결 가능성을 보장하지 않습니다. 현재 연결된 TAGO 버스 API는 실시간 도착정보만 제공하므로 버스 막차는 시간표 데이터가 연결되기 전까지 확정 시각을 표시하지 않습니다.</p>
       </div>
-      {loadingResults && <div className="last-train-loading">대중교통 정보를 조회하고 있습니다...</div>}
+      {loadingResults && <div className="last-train-loading">귀가 경로와 환승 구간을 조회하고 있습니다...</div>}
       {participants.length === 0 ? <div className="last-train-empty">참여자 정보를 불러오지 못했습니다.</div> : (
         <div className="last-train-list">
           {participants.map((participant) => {
             const location = locations.find((item) => Number(item.userId) === Number(participant.userId));
-            const train = trainResults[participant.userId];
-            const bus = busResults[participant.userId];
+            const result = routeResults[participant.userId];
+            const routes = Array.isArray(result?.routes) ? result.routes : [];
             const url = routeUrl(location);
             return <article className="last-train-card" key={participant.userId}>
               <div className="last-train-person"><span className="last-train-avatar" aria-hidden="true">👤</span><div><strong>{participant.name || participant.userName || participant.email || "참여자"}</strong><span>{location?.address || "출발지 미등록"}</span></div></div>
-              <div className="last-train-options">
-                <div className="last-train-option"><span className="last-train-mode">🚇 지하철</span><strong>{location ? formatTrainStatus(train) : "출발지 미등록"}</strong>{train?.originStation?.name && <small>출발지 주변역: {train.originStation.name}</small>}{train?.destinationStation?.name && <small>약속장소 주변역: {train.destinationStation.name}</small>}{train?.message && <small>{train.message}</small>}</div>
-                <div className="last-train-option"><span className="last-train-mode">🚌 버스</span><strong>{location ? formatBusStatus(bus) : "출발지 미등록"}</strong>{bus?.stationName && <small>약속장소 주변 정류장: {bus.stationName}</small>}{bus?.message && <small>{bus.message}</small>}</div>
-              </div>
-              {url ? <a className="last-train-route-link" href={url} target="_blank" rel="noreferrer">대중교통 경로 확인 ↗</a> : <span className="last-train-route-disabled">출발지를 등록하면 경로를 확인할 수 있습니다.</span>}
+              {!location ? <p>출발지를 등록하면 귀가 경로를 조회할 수 있습니다.</p> : (
+                <>
+                  {result?.message && <p className="last-train-route-message">{result.message}</p>}
+                  {routes.length === 0 ? <div className="last-train-empty">대중교통 경로를 찾지 못했습니다.</div> : routes.map((route, routeIndex) => (
+                    <div className="last-train-route-option" key={routeIndex}>
+                      <div className="last-train-route-summary">
+                        <strong>{route.type === "BUS" ? "🚌 버스" : route.type === "SUBWAY" ? "🚇 지하철" : "🚌🚇 버스·지하철 환승"}</strong>
+                        <span>{formatDuration(route.totalTimeSeconds)} · 환승 {route.transferCount ?? 0}회</span>
+                      </div>
+                      <div className="last-train-segments">
+                        {(route.segments || []).map((segment, segmentIndex) => {
+                          const train = segment.lastTrain;
+                          const departure = train?.lastDeparture;
+                          return <div className="last-train-segment" key={segmentIndex}>
+                            <div className="last-train-segment-heading">
+                              <strong>{modeLabel(segment.type)}</strong>
+                              <span>{formatDuration(segment.timeSeconds)}</span>
+                            </div>
+                            {segment.vehicles?.length > 0 && <p className="last-train-segment-route">{segment.vehicles.join(", ")}</p>}
+                            {segment.guidance && <p>{segment.guidance}</p>}
+                            {segment.stops?.length > 0 && <p className="last-train-segment-stops">{segment.stops.join(" → ")}</p>}
+                            {segment.type === "SUBWAY" && (
+                              <p className="last-train-segment-last">
+                                지하철 막차: <strong>{train?.status === "OK" && departure ? formatTime(departure.departureTime) : "확인 불가"}</strong>
+                                {departure?.routeName && <span> · {departure.routeName}</span>}
+                                {train?.message && <small>{train.message}</small>}
+                              </p>
+                            )}
+                            {segment.type === "BUS" && (
+                              <p className="last-train-segment-last">버스 막차: <strong>확인 불가</strong><small>{segment.lastBus?.message || "운행시간표 데이터가 연결되지 않았습니다."}</small></p>
+                            )}
+                          </div>;
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                  {url && <a className="last-train-route-link" href={url} target="_blank" rel="noreferrer">카카오맵에서 귀가 경로 열기 ↗</a>}
+                </>
+              )}
             </article>;
           })}
         </div>
