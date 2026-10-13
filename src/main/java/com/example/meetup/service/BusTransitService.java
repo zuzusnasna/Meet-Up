@@ -12,13 +12,18 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class BusTransitService {
+
+    private static final double INITIAL_RADIUS_METERS = 500.0;
+    private static final double EXPANDED_RADIUS_METERS = 1000.0;
 
     @Value("${tago.service-key}")
     private String serviceKey;
@@ -31,7 +36,7 @@ public class BusTransitService {
 
         if (station == null) {
             result.put("status", "BUS_STATION_NOT_FOUND");
-            result.put("message", "약속장소 주변 500m에서 TAGO 버스정류장을 찾지 못했습니다.");
+            result.put("message", "약속장소 주변 1km에서 TAGO 버스정류장을 찾지 못했습니다.");
             return result;
         }
 
@@ -64,34 +69,85 @@ public class BusTransitService {
     }
 
     private JsonNode findNearbyStation(double latitude, double longitude) {
-        JsonNode root = requestJson(
+        JsonNode nearbyStations = requestNearbyStations(latitude, longitude, 10);
+        JsonNode station = findNearestStationWithin(nearbyStations, latitude, longitude, INITIAL_RADIUS_METERS);
+        if (station != null) {
+            return station;
+        }
+
+        // 500m 내 정류장이 없을 때만 조회 건수를 늘려 최대 1km 범위에서 다시 찾는다.
+        JsonNode expandedStations = requestNearbyStations(latitude, longitude, 100);
+        return findNearestStationWithin(expandedStations, latitude, longitude, EXPANDED_RADIUS_METERS);
+    }
+
+    private JsonNode requestNearbyStations(double latitude, double longitude, int numOfRows) {
+        return requestJson(
                 "https://apis.data.go.kr/1613000/BusSttnInfoInqireService/getCrdntPrxmtSttnList"
                         + "?serviceKey=" + encodedKey()
                         + "&gpsLati=" + latitude
                         + "&gpsLong=" + longitude
-                        + "&pageNo=1&numOfRows=10&_type=json"
+                        + "&pageNo=1&numOfRows=" + numOfRows + "&_type=json"
         );
-        return findStationNode(root);
     }
 
-    private JsonNode findStationNode(JsonNode node) {
-        if (node == null || node.isNull()) return null;
+    private JsonNode findNearestStationWithin(JsonNode root, double latitude, double longitude, double radiusMeters) {
+        List<JsonNode> stations = new ArrayList<>();
+        collectStations(root, stations);
+
+        JsonNode nearest = null;
+        double nearestDistance = Double.MAX_VALUE;
+        for (JsonNode station : stations) {
+            double stationLatitude = parseCoordinate(firstText(station, "gpslati", "gpsLati", "latitude"));
+            double stationLongitude = parseCoordinate(firstText(station, "gpslong", "gpsLong", "longitude"));
+            if (Double.isNaN(stationLatitude) || Double.isNaN(stationLongitude)) {
+                continue;
+            }
+
+            double distance = distanceMeters(latitude, longitude, stationLatitude, stationLongitude);
+            if (distance <= radiusMeters && distance < nearestDistance) {
+                nearest = station;
+                nearestDistance = distance;
+            }
+        }
+        return nearest;
+    }
+
+    private void collectStations(JsonNode node, List<JsonNode> stations) {
+        if (node == null || node.isNull()) return;
         if (node.isObject()) {
             String nodeId = firstText(node, "nodeid", "nodeId");
             String cityCode = firstText(node, "citycode", "cityCode");
-            if (!nodeId.isBlank() && !cityCode.isBlank()) return node;
+            if (!nodeId.isBlank() && !cityCode.isBlank()) {
+                stations.add(node);
+                return;
+            }
             Iterator<JsonNode> values = node.elements();
             while (values.hasNext()) {
-                JsonNode found = findStationNode(values.next());
-                if (found != null) return found;
+                collectStations(values.next(), stations);
             }
         } else if (node.isArray()) {
             for (JsonNode child : node) {
-                JsonNode found = findStationNode(child);
-                if (found != null) return found;
+                collectStations(child, stations);
             }
         }
-        return null;
+    }
+
+    private double parseCoordinate(String value) {
+        try {
+            return Double.parseDouble(value);
+        } catch (NumberFormatException e) {
+            return Double.NaN;
+        }
+    }
+
+    private double distanceMeters(double latitude1, double longitude1, double latitude2, double longitude2) {
+        double earthRadiusMeters = 6_371_000.0;
+        double latDistance = Math.toRadians(latitude2 - latitude1);
+        double lonDistance = Math.toRadians(longitude2 - longitude1);
+        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
+                + Math.cos(Math.toRadians(latitude1)) * Math.cos(Math.toRadians(latitude2))
+                * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
+        return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
     private JsonNode requestJson(String url) {
