@@ -53,9 +53,7 @@ public class TransitService {
                     "출발지 또는 약속장소 주변 역의 호선별 TAGO 정보를 찾지 못했습니다.");
         }
 
-        List<JsonNode> matchingSchedules = new ArrayList<>();
-        TagoStation matchedOrigin = null;
-        TagoStation matchedDestination = null;
+        List<ScheduleMatch> matchingSchedules = new ArrayList<>();
 
         // 같은 역명이라도 호선별 TAGO 역 ID가 다를 수 있으므로,
         // 출발지와 목적지의 모든 호선 후보를 비교한다.
@@ -74,9 +72,7 @@ public class TransitService {
                                 "subwayRouteName", "subwayRouteNm", "routeName", "routeNm");
                         if (isSameStation(terminal, origin.name())
                                 && (scheduleRoute.isBlank() || sameRoute(scheduleRoute, destination.routeName()))) {
-                            matchingSchedules.add(schedule);
-                            matchedOrigin = origin;
-                            matchedDestination = destination;
+                            matchingSchedules.add(new ScheduleMatch(schedule, origin, destination));
                         }
                     }
                 }
@@ -88,15 +84,18 @@ public class TransitService {
                     "출발지·목적지의 호선별 시간표에서 직통 운행을 찾지 못했습니다. 환승 경로는 아직 계산하지 않습니다.");
         }
 
-        JsonNode last = matchingSchedules.stream()
-                .filter(schedule -> !scheduleTime(schedule).equals("000000"))
-                .max(Comparator.comparing(this::scheduleTime))
+        ScheduleMatch lastMatch = matchingSchedules.stream()
+                .filter(match -> !scheduleTime(match.schedule()).equals("000000"))
+                .max(Comparator.comparing(match -> scheduleTime(match.schedule())))
                 .orElse(null);
 
-        if (last == null) {
+        if (lastMatch == null) {
             return failure(result, "SCHEDULE_NOT_FOUND", "호선별 시간표에서 막차 시간을 찾지 못했습니다.");
         }
 
+        JsonNode last = lastMatch.schedule();
+        TagoStation matchedOrigin = lastMatch.origin();
+        TagoStation matchedDestination = lastMatch.destination();
         Map<String, Object> lastDeparture = new LinkedHashMap<>();
         lastDeparture.put("departureTime", scheduleTime(last));
         lastDeparture.put("destinationStationName", firstText(last,
@@ -105,10 +104,10 @@ public class TransitService {
                 "arrivalStationName", "subwayStationName"));
         lastDeparture.put("routeName", firstText(last, "subwayRouteName", "subwayRouteNm", "routeName", "routeNm"));
         lastDeparture.put("direction", firstText(last, "upDownTypeCode", "upDownTypeName"));
-        lastDeparture.put("originRouteName", matchedOrigin == null ? "" : matchedOrigin.routeName());
-        lastDeparture.put("destinationRouteName", matchedDestination == null ? "" : matchedDestination.routeName());
-        lastDeparture.put("originTagoStationId", matchedOrigin == null ? "" : matchedOrigin.id());
-        lastDeparture.put("destinationTagoStationId", matchedDestination == null ? "" : matchedDestination.id());
+        lastDeparture.put("originRouteName", matchedOrigin.routeName());
+        lastDeparture.put("destinationRouteName", matchedDestination.routeName());
+        lastDeparture.put("originTagoStationId", matchedOrigin.id());
+        lastDeparture.put("destinationTagoStationId", matchedDestination.id());
 
         result.put("status", "OK");
         result.put("message", "호선별 TAGO 역 ID와 시간표를 대조해 확인한 직통 운행 후보입니다. 환승 경로를 포함한 최종 막차 보장은 아닙니다.");
@@ -147,7 +146,6 @@ public class TransitService {
         for (KakaoPlaceDto place : nearby) {
             String normalizedName = normalizeStationName(place.getPlaceName());
             List<String> queries = new ArrayList<>();
-            addCandidate(queries, place.getPlaceName());
             addCandidate(queries, normalizedName);
             addCandidate(queries, normalizedName + "역");
 
@@ -207,6 +205,7 @@ public class TransitService {
     }
 
     private record TagoStation(String id, String name, String routeName) {}
+    private record ScheduleMatch(JsonNode schedule, TagoStation origin, TagoStation destination) {}
 
     private JsonNode fetchSchedules(String stationId, String dayType, String direction) {
         JsonNode root = requestJson(
