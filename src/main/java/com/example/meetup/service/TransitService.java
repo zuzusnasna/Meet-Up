@@ -115,7 +115,7 @@ public class TransitService {
 
     private String findTagoStationId(String stationName) {
         JsonNode root = requestJson(
-                "https://apis.data.go.kr/1613000/SubwayInfoService/getKwrdFndSubwaySttnList"
+                "https://apis.data.go.kr/1613000/SubwayInfo/getKwrdFndSubwaySttnList"
                         + "?serviceKey=" + encodedKey()
                         + "&subwayStationName=" + encode(stationName)
                         + "&pageNo=1&numOfRows=20&_type=json"
@@ -137,7 +137,7 @@ public class TransitService {
 
     private JsonNode fetchSchedules(String stationId, String dayType, String direction) {
         JsonNode root = requestJson(
-                "https://apis.data.go.kr/1613000/SubwayInfoService/getSubwaySttnAcctoSchdulList"
+                "https://apis.data.go.kr/1613000/SubwayInfo/getSubwaySttnAcctoSchdulList"
                         + "?serviceKey=" + encodedKey()
                         + "&subwayStationId=" + encode(stationId)
                         + "&dailyTypeCode=" + dayType
@@ -166,7 +166,7 @@ public class TransitService {
                 String line;
                 while ((line = reader.readLine()) != null) body.append(line);
                 if (status < 200 || status >= 300) {
-                    throw new IllegalStateException("TAGO API HTTP " + status);
+                    throw new IllegalStateException("TAGO API HTTP " + status + " - " + body);
                 }
                 return objectMapper.readTree(body.toString());
             }
