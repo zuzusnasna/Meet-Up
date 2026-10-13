@@ -48,33 +48,31 @@ public class TransitService {
             return failure(result, "STATION_NOT_FOUND", "출발지 또는 약속장소 주변 지하철역을 찾지 못했습니다.");
         }
 
-        String originStationId = findTagoStationId(originStation.getPlaceName());
         String destinationStationId = findTagoStationId(destinationStation.getPlaceName());
-        if (originStationId == null || destinationStationId == null) {
-            return failure(result, "TAGO_STATION_NOT_FOUND", "주변 역을 TAGO 지하철 역 정보와 연결하지 못했습니다.");
+        if (destinationStationId == null) {
+            return failure(result, "TAGO_STATION_NOT_FOUND", "TAGO 지하철 역 정보에서 약속장소 주변 역을 찾지 못했습니다.");
         }
 
-        String destinationName = normalizeStationName(destinationStation.getPlaceName());
+        String originName = normalizeStationName(originStation.getPlaceName());
         List<JsonNode> matchingSchedules = new ArrayList<>();
 
-        // TAGO 시간표는 '해당 역에서 출발하는 열차' 기준이므로
-        // 출발지 역의 시간표를 조회한 뒤 종착역이 목적지 역과 일치하는 직통 후보만 추립니다.
+        // 이 서비스에서 사용하는 TAGO 시간표는 약속장소 역을 기준으로 조회하고,
+        // 해당 역에 들어오는 열차의 종착역이 출발지 방향인지 확인한다.
         for (String direction : List.of("U", "D")) {
-            JsonNode schedules = fetchSchedules(originStationId, normalizedDayType, direction);
+            JsonNode schedules = fetchSchedules(destinationStationId, normalizedDayType, direction);
             for (JsonNode schedule : schedules) {
                 String terminal = firstText(schedule,
                         "endsubwaystationnm", "endSubwayStationNm",
                         "destinationStationName", "endStationName", "terminalStationName",
                         "arrivalStationName", "subwayStationName");
-                if (!terminal.isBlank() && isSameStation(terminal, destinationName)) {
+                if (!terminal.isBlank() && isSameStation(terminal, originName)) {
                     matchingSchedules.add(schedule);
                 }
             }
         }
 
         if (matchingSchedules.isEmpty()) {
-            return failure(result, "DIRECT_ROUTE_NOT_FOUND",
-                    "출발지 역에서 약속장소 역으로 바로 가는 TAGO 시간표를 찾지 못했습니다. 환승 경로는 별도 경로 검색이 필요합니다.");
+            return failure(result, "DIRECT_ROUTE_NOT_FOUND", "직통으로 연결되는 시간표를 찾지 못했습니다. 환승 경로는 별도 경로 검색이 필요합니다.");
         }
 
         JsonNode last = matchingSchedules.stream()
@@ -142,7 +140,6 @@ public class TransitService {
         if (node == null || node.isNull()) return null;
 
         if (node.isObject()) {
-            // TAGO JSON의 실제 필드는 subwayStationID(대문자 ID)다.
             String name = firstText(node, "subwayStationName", "stationName", "subwaystationname", "stationname");
             String id = firstText(node, "subwayStationID", "subwayStationId", "stationId", "subwaystationid", "stationid");
             if (!name.isBlank() && !id.isBlank() && isSameStation(name, target)) return id;
