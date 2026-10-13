@@ -17,6 +17,7 @@ public class TransitController {
 
     private final TransitService transitService;
     private final BusTransitService busTransitService;
+    private final com.example.meetup.service.KakaoTransitRouteService kakaoTransitRouteService;
 
     @GetMapping("/last-train")
     public Map<String, Object> findLastTrain(
@@ -27,6 +28,17 @@ public class TransitController {
             @RequestParam(required = false) String dayType
     ) {
         return transitService.findLastTrain(originLatitude, originLongitude, destinationLatitude, destinationLongitude, dayType);
+    }
+
+    @GetMapping("/return-routes")
+    public Map<String, Object> findReturnRoutes(
+            @RequestParam double meetingLatitude,
+            @RequestParam double meetingLongitude,
+            @RequestParam double originLatitude,
+            @RequestParam double originLongitude
+    ) {
+        return kakaoTransitRouteService.findReturnRoutes(
+                meetingLatitude, meetingLongitude, originLatitude, originLongitude);
     }
 
     @GetMapping("/bus-arrivals")
