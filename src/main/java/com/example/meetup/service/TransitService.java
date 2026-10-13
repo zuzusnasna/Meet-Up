@@ -32,13 +32,9 @@ public class TransitService {
     private final KakaoPlaceService kakaoPlaceService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public Map<String, Object> findLastTrain(
-            double originLatitude,
-            double originLongitude,
-            double destinationLatitude,
-            double destinationLongitude,
-            String dayType
-    ) {
+    public Map<String, Object> findLastTrain(double originLatitude, double originLongitude,
+                                             double destinationLatitude, double destinationLongitude,
+                                             String dayType) {
         String normalizedDayType = normalizeDayType(dayType);
         KakaoPlaceDto originStation = nearestStation(originLatitude, originLongitude);
         KakaoPlaceDto destinationStation = nearestStation(destinationLatitude, destinationLongitude);
@@ -107,9 +103,7 @@ public class TransitService {
     private KakaoPlaceDto nearestStation(double latitude, double longitude) {
         Map<String, Object> response = kakaoPlaceService.searchNearbySubwayStations(latitude, longitude);
         Object documents = response.get("documents");
-        if (!(documents instanceof List<?> list) || list.isEmpty()) {
-            return null;
-        }
+        if (!(documents instanceof List<?> list) || list.isEmpty()) return null;
         Object first = list.get(0);
         return first instanceof KakaoPlaceDto dto ? dto : null;
     }
@@ -119,7 +113,7 @@ public class TransitService {
         List<String> candidates = new ArrayList<>();
         addCandidate(candidates, stationName);
         addCandidate(candidates, normalizedName);
-        addCandidate(candidates, stationName + "역");
+        addCandidate(candidates, normalizedName + "역");
 
         for (String candidate : candidates) {
             JsonNode root = requestJson(
@@ -130,32 +124,23 @@ public class TransitService {
             );
 
             String stationId = findStationId(root, normalizedName);
-            if (stationId != null) {
-                return stationId;
-            }
+            if (stationId != null) return stationId;
         }
         return null;
     }
 
     private String findStationId(JsonNode node, String target) {
-        if (node == null || node.isNull()) {
-            return null;
-        }
+        if (node == null || node.isNull()) return null;
 
         if (node.isObject()) {
             String name = firstText(node, "subwayStationName", "stationName");
             String id = firstText(node, "subwayStationId", "stationId");
-
-            if (!name.isBlank() && !id.isBlank() && isSameStation(name, target)) {
-                return id;
-            }
+            if (!name.isBlank() && !id.isBlank() && isSameStation(name, target)) return id;
 
             Iterator<JsonNode> values = node.elements();
             while (values.hasNext()) {
                 String found = findStationId(values.next(), target);
-                if (found != null) {
-                    return found;
-                }
+                if (found != null) return found;
             }
             return null;
         }
@@ -163,28 +148,24 @@ public class TransitService {
         if (node.isArray()) {
             for (JsonNode child : node) {
                 String found = findStationId(child, target);
-                if (found != null) {
-                    return found;
-                }
+                if (found != null) return found;
             }
         }
-
         return null;
     }
 
     private boolean isSameStation(String name, String target) {
         String normalized = normalizeStationName(name);
-        return !normalized.isBlank()
-                && !target.isBlank()
+        return !normalized.isBlank() && !target.isBlank()
                 && (normalized.equals(target)
                 || normalized.startsWith(target + "(")
-                || normalized.startsWith(target + "["));
+                || normalized.startsWith(target + "[")
+                || target.startsWith(normalized + "(")
+                || target.startsWith(normalized + "["));
     }
 
     private void addCandidate(List<String> candidates, String value) {
-        if (value != null && !value.isBlank() && !candidates.contains(value)) {
-            candidates.add(value);
-        }
+        if (value != null && !value.isBlank() && !candidates.contains(value)) candidates.add(value);
     }
 
     private JsonNode fetchSchedules(String stationId, String dayType, String direction) {
@@ -196,14 +177,9 @@ public class TransitService {
                         + "&upDownTypeCode=" + direction
                         + "&pageNo=1&numOfRows=999&_type=json"
         );
-
         JsonNode items = root.path("response").path("body").path("items").path("item");
-        if (items.isArray()) {
-            return items;
-        }
-        if (items.isObject()) {
-            return objectMapper.createArrayNode().add(items);
-        }
+        if (items.isArray()) return items;
+        if (items.isObject()) return objectMapper.createArrayNode().add(items);
         return objectMapper.createArrayNode();
     }
 
@@ -215,31 +191,20 @@ public class TransitService {
             connection.setConnectTimeout(5000);
             connection.setReadTimeout(8000);
             connection.setRequestProperty("Accept", "application/json");
-
             int status = connection.getResponseCode();
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(
-                    status >= 200 && status < 300
-                            ? connection.getInputStream()
-                            : connection.getErrorStream(),
+                    status >= 200 && status < 300 ? connection.getInputStream() : connection.getErrorStream(),
                     StandardCharsets.UTF_8))) {
-
                 StringBuilder body = new StringBuilder();
                 String line;
-                while ((line = reader.readLine()) != null) {
-                    body.append(line);
-                }
-
-                if (status < 200 || status >= 300) {
-                    throw new IllegalStateException("TAGO API HTTP " + status + " - " + body);
-                }
+                while ((line = reader.readLine()) != null) body.append(line);
+                if (status < 200 || status >= 300) throw new IllegalStateException("TAGO API HTTP " + status + " - " + body);
                 return objectMapper.readTree(body.toString());
             }
         } catch (Exception e) {
             throw new IllegalStateException("TAGO 지하철 API 요청에 실패했습니다. 인증키 승인 여부와 API 응답을 확인하세요.", e);
         } finally {
-            if (connection != null) {
-                connection.disconnect();
-            }
+            if (connection != null) connection.disconnect();
         }
     }
 
@@ -251,7 +216,6 @@ public class TransitService {
                 default -> "01";
             };
         }
-
         return switch (value.toUpperCase(Locale.ROOT)) {
             case "WEEKDAY", "01" -> "01";
             case "SATURDAY", "02" -> "02";
@@ -277,9 +241,7 @@ public class TransitService {
     private String firstText(JsonNode node, String... fields) {
         for (String field : fields) {
             String value = text(node, field);
-            if (!value.isBlank()) {
-                return value;
-            }
+            if (!value.isBlank()) return value;
         }
         return "";
     }
@@ -291,21 +253,22 @@ public class TransitService {
     }
 
     private String normalizeStationName(String name) {
-        return name == null
-                ? ""
-                : name.replace("역", "").replaceAll("\\s+", "").trim();
+        if (name == null) return "";
+        return name
+                .replaceAll("\\([^)]*\\)", "")
+                .replaceAll("\\[[^]]*\\]", "")
+                .replaceAll("\\s*(공항철도|경의중앙선|경춘선|수인분당선|분당선|신분당선|우이신설선|의정부경전철|김포골드라인|서해선|1호선|2호선|3호선|4호선|5호선|6호선|7호선|8호선|9호선)\\s*", "")
+                .replace("역", "")
+                .replaceAll("\\s+", "")
+                .trim();
     }
 
     private Map<String, Object> stationSummary(KakaoPlaceDto station) {
-        if (station == null) {
-            return null;
-        }
-
+        if (station == null) return null;
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("name", station.getPlaceName());
         summary.put("address", station.getRoadAddressName() == null || station.getRoadAddressName().isBlank()
-                ? station.getAddressName()
-                : station.getRoadAddressName());
+                ? station.getAddressName() : station.getRoadAddressName());
         summary.put("latitude", station.getY());
         summary.put("longitude", station.getX());
         return summary;
