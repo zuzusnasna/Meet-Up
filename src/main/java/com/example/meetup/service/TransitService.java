@@ -70,8 +70,8 @@ public class TransitService {
                     if (!scheduleRoute.isBlank() && !routesMatch(scheduleRoute, destination.routeName())) continue;
 
                     for (TagoStation origin : originStations) {
-                        if (!sameRoute(destination.routeName(), origin.routeName())) continue;
-                        if (isSameStation(terminal, origin.name())) {
+                        if (routesMatch(destination.routeName(), origin.routeName())
+                                && isSameStation(terminal, origin.name())) {
                             matchingSchedules.add(new ScheduleMatch(schedule, origin, destination));
                         }
                     }
@@ -197,7 +197,7 @@ public class TransitService {
         }
     }
 
-    private boolean sameRoute(String first, String second) {
+    private boolean routesMatch(String first, String second) {
         if (first == null || second == null || first.isBlank() || second.isBlank()) return false;
         String a = normalizeRouteName(first);
         String b = normalizeRouteName(second);
