@@ -35,6 +35,7 @@ public class SecurityConfig {
                                 "/api/weather/**",
                                 "/api/locations/**",
                                 "/api/tourism/**",
+                                "/api/transit/**",
                                 "/api/memos/**",
                                 "/api/rooms/**",
                                 "/api/users/**",
