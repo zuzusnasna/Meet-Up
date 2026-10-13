@@ -67,7 +67,7 @@ public class TransitService {
                             "arrivalStationName", "subwayStationName");
                     String scheduleRoute = firstText(schedule,
                             "subwayRouteName", "subwayRouteNm", "routeName", "routeNm");
-                    if (!scheduleRoute.isBlank() && !sameRoute(scheduleRoute, destination.routeName())) continue;
+                    if (!scheduleRoute.isBlank() && !routesMatch(scheduleRoute, destination.routeName())) continue;
 
                     for (TagoStation origin : originStations) {
                         if (!sameRoute(destination.routeName(), origin.routeName())) continue;
@@ -176,6 +176,24 @@ public class TransitService {
             while (values.hasNext()) collectTagoStations(values.next(), target, result);
         } else if (node.isArray()) {
             for (JsonNode child : node) collectTagoStations(child, target, result);
+        }
+    }
+
+    private boolean isSameStation(String name, String target) {
+        String normalized = normalizeStationName(name);
+        return !normalized.isBlank() && target != null && !target.isBlank()
+                && (normalized.equals(target)
+                || normalized.startsWith(target + "(")
+                || normalized.startsWith(target + "[")
+                || target.startsWith(normalized + "(")
+                || target.startsWith(normalized + "[")
+                || normalized.contains(target)
+                || target.contains(normalized));
+    }
+
+    private void addCandidate(List<String> candidates, String value) {
+        if (value != null && !value.isBlank() && !candidates.contains(value)) {
+            candidates.add(value);
         }
     }
 
