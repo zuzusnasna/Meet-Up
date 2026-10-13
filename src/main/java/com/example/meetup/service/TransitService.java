@@ -56,22 +56,22 @@ public class TransitService {
         List<ScheduleMatch> matchingSchedules = new ArrayList<>();
 
         // 같은 역명이라도 호선별 TAGO 역 ID가 다를 수 있으므로,
-        // 출발지와 목적지의 모든 호선 후보를 비교한다.
+        // 목적지 후보의 시간표를 한 번씩 조회하고 출발지 호선 후보와 대조한다.
         for (TagoStation destination : destinationStations) {
-            for (TagoStation origin : originStations) {
-                if (!sameRoute(destination.routeName(), origin.routeName())) continue;
+            for (String direction : List.of("U", "D")) {
+                JsonNode schedules = fetchSchedules(destination.id(), normalizedDayType, direction);
+                for (JsonNode schedule : schedules) {
+                    String terminal = firstText(schedule,
+                            "endsubwaystationnm", "endSubwayStationNm",
+                            "destinationStationName", "endStationName", "terminalStationName",
+                            "arrivalStationName", "subwayStationName");
+                    String scheduleRoute = firstText(schedule,
+                            "subwayRouteName", "subwayRouteNm", "routeName", "routeNm");
+                    if (!scheduleRoute.isBlank() && !sameRoute(scheduleRoute, destination.routeName())) continue;
 
-                for (String direction : List.of("U", "D")) {
-                    JsonNode schedules = fetchSchedules(destination.id(), normalizedDayType, direction);
-                    for (JsonNode schedule : schedules) {
-                        String terminal = firstText(schedule,
-                                "endsubwaystationnm", "endSubwayStationNm",
-                                "destinationStationName", "endStationName", "terminalStationName",
-                                "arrivalStationName", "subwayStationName");
-                        String scheduleRoute = firstText(schedule,
-                                "subwayRouteName", "subwayRouteNm", "routeName", "routeNm");
-                        if (isSameStation(terminal, origin.name())
-                                && (scheduleRoute.isBlank() || sameRoute(scheduleRoute, destination.routeName()))) {
+                    for (TagoStation origin : originStations) {
+                        if (!sameRoute(destination.routeName(), origin.routeName())) continue;
+                        if (isSameStation(terminal, origin.name())) {
                             matchingSchedules.add(new ScheduleMatch(schedule, origin, destination));
                         }
                     }
