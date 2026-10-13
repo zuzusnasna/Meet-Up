@@ -71,8 +71,12 @@ public class TransitService {
         for (String direction : List.of("U", "D")) {
             JsonNode schedules = fetchSchedules(destinationStationId, normalizedDayType, direction);
             for (JsonNode schedule : schedules) {
-                String terminal = text(schedule, "destinationStationName");
-                if (terminal.isBlank()) terminal = text(schedule, "subwayStationName");
+                String terminal = firstText(schedule,
+                        "destinationStationName",
+                        "endStationName",
+                        "terminalStationName",
+                        "arrivalStationName",
+                        "subwayStationName");
                 if (!terminal.isBlank() && normalizeStationName(terminal).contains(originName)) {
                     matchingSchedules.add(schedule);
                 }
@@ -93,8 +97,8 @@ public class TransitService {
         result.put("status", "OK");
         result.put("message", "TAGO 시간표에서 확인한 직통 운행의 마지막 출발 후보입니다. 환승 경로를 포함한 최종 막차 보장은 아닙니다.");
         result.put("lastDeparture", last == null ? null : Map.of(
-                "departureTime", firstText(last, "departureTime", "depTime", "arrivalTime", "arrTime"),
-                "destinationStationName", firstText(last, "destinationStationName", "subwayStationName"),
+                "departureTime", firstText(last, "departureTime", "depTime", "startTime", "arrivalTime", "arrTime"),
+                "destinationStationName", firstText(last, "destinationStationName", "endStationName", "terminalStationName", "arrivalStationName", "subwayStationName"),
                 "routeName", firstText(last, "subwayRouteName", "routeName"),
                 "direction", firstText(last, "upDownTypeCode", "upDownTypeName")
         ));
