@@ -56,8 +56,8 @@ public class TransitService {
         String originName = normalizeStationName(originStation.getPlaceName());
         List<JsonNode> matchingSchedules = new ArrayList<>();
 
-        // 이 서비스에서 사용하는 TAGO 시간표는 약속장소 역을 기준으로 조회하고,
-        // 해당 역에 들어오는 열차의 종착역이 출발지 방향인지 확인한다.
+        // 약속장소 역 시간표를 조회하고, 그 역을 출발하는 열차 중
+        // 종착역이 출발지 방향인 열차만 남긴다.
         for (String direction : List.of("U", "D")) {
             JsonNode schedules = fetchSchedules(destinationStationId, normalizedDayType, direction);
             for (JsonNode schedule : schedules) {
@@ -75,6 +75,7 @@ public class TransitService {
             return failure(result, "DIRECT_ROUTE_NOT_FOUND", "직통으로 연결되는 시간표를 찾지 못했습니다. 환승 경로는 별도 경로 검색이 필요합니다.");
         }
 
+        // 막차는 해당 역에서 실제로 출발하는 시간(depTime)을 기준으로 판단한다.
         JsonNode last = matchingSchedules.stream()
                 .filter(schedule -> !scheduleTime(schedule).equals("000000"))
                 .max(Comparator.comparing(this::scheduleTime))
@@ -84,9 +85,9 @@ public class TransitService {
             return failure(result, "SCHEDULE_NOT_FOUND", "막차 시간표를 찾지 못했습니다.");
         }
 
+        String departureTime = scheduleTime(last);
         Map<String, Object> lastDeparture = new LinkedHashMap<>();
-        lastDeparture.put("departureTime", firstText(last,
-                "arrtime", "arrivalTime", "arrTime", "departureTime", "depTime", "startTime"));
+        lastDeparture.put("departureTime", departureTime);
         lastDeparture.put("destinationStationName", firstText(last,
                 "endsubwaystationnm", "endSubwayStationNm",
                 "destinationStationName", "endStationName", "terminalStationName",
@@ -256,7 +257,7 @@ public class TransitService {
     }
 
     private String scheduleTime(JsonNode node) {
-        String value = firstText(node, "arrtime", "arrivalTime", "arrTime", "departureTime", "depTime", "startTime");
+        String value = firstText(node, "depTime", "departureTime", "startTime", "arrtime", "arrivalTime", "arrTime");
         String digits = value.replaceAll("[^0-9]", "");
         return digits.isBlank() ? "000000" : digits;
     }
