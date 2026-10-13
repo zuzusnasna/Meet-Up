@@ -14,8 +14,8 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Service
@@ -36,13 +36,13 @@ public class BusTransitService {
 
         if (station == null) {
             result.put("status", "BUS_STATION_NOT_FOUND");
-            result.put("message", "TAGO 응답에서 약속장소 주변 버스정류장을 찾지 못했습니다.");
+            result.put("message", "약속장소 주변 1km에서 TAGO 버스정류장을 찾지 못했습니다.");
             return result;
         }
 
-        String cityCode = firstText(station, "citycode", "cityCode", "city_code");
-        String nodeId = firstText(station, "nodeid", "nodeId", "node_id");
-        String nodeName = firstText(station, "nodenm", "nodeNm", "nodeName", "node_name");
+        String cityCode = firstText(station, "citycode", "cityCode");
+        String nodeId = firstText(station, "nodeid", "nodeId");
+        String nodeName = firstText(station, "nodenm", "nodeNm", "nodeName");
 
         if (cityCode.isBlank() || nodeId.isBlank()) {
             result.put("status", "BUS_STATION_DATA_INVALID");
@@ -69,31 +69,15 @@ public class BusTransitService {
     }
 
     private JsonNode findNearbyStation(double latitude, double longitude) {
-        // TAGO의 좌표 기반 정류장 API는 검색 반경 대신 조회 건수를 받으므로
-        // 후보를 넉넉히 조회한 뒤 응답 좌표로 500m, 1km 범위를 판별한다.
-        JsonNode root = requestNearbyStations(latitude, longitude, 100);
-        List<JsonNode> stations = new ArrayList<>();
-        collectStations(root, stations);
-
-        JsonNode nearestWithinInitialRadius = nearestStationWithin(
-                stations, latitude, longitude, INITIAL_RADIUS_METERS, true);
-        if (nearestWithinInitialRadius != null) {
-            return nearestWithinInitialRadius;
+        JsonNode nearbyStations = requestNearbyStations(latitude, longitude, 10);
+        JsonNode station = findNearestStationWithin(nearbyStations, latitude, longitude, INITIAL_RADIUS_METERS);
+        if (station != null) {
+            return station;
         }
 
-        JsonNode nearestWithinExpandedRadius = nearestStationWithin(
-                stations, latitude, longitude, EXPANDED_RADIUS_METERS, true);
-        if (nearestWithinExpandedRadius != null) {
-            return nearestWithinExpandedRadius;
-        }
-
-        // 응답에 정류장 ID는 있지만 좌표 필드가 제공되지 않는 경우,
-        // TAGO의 좌표 기반 검색 결과 순서를 이용해 첫 후보를 사용한다.
-        boolean hasAnyCoordinates = stations.stream().anyMatch(this::hasCoordinates);
-        if (!hasAnyCoordinates && !stations.isEmpty()) {
-            return stations.get(0);
-        }
-        return null;
+        // 500m 내 정류장이 없을 때만 조회 건수를 늘려 최대 1km 범위에서 다시 찾는다.
+        JsonNode expandedStations = requestNearbyStations(latitude, longitude, 100);
+        return findNearestStationWithin(expandedStations, latitude, longitude, EXPANDED_RADIUS_METERS);
     }
 
     private JsonNode requestNearbyStations(double latitude, double longitude, int numOfRows) {
@@ -106,22 +90,16 @@ public class BusTransitService {
         );
     }
 
-    private JsonNode nearestStationWithin(
-            List<JsonNode> stations, double latitude, double longitude,
-            double radiusMeters, boolean requireCoordinates) {
+    private JsonNode findNearestStationWithin(JsonNode root, double latitude, double longitude, double radiusMeters) {
+        List<JsonNode> stations = new ArrayList<>();
+        collectStations(root, stations);
+
         JsonNode nearest = null;
         double nearestDistance = Double.MAX_VALUE;
-
         for (JsonNode station : stations) {
-            double stationLatitude = parseCoordinate(firstText(station,
-                    "gpslati", "gpsLati", "gpsLatitude", "gpslatitude", "latitude", "gps_latitude"));
-            double stationLongitude = parseCoordinate(firstText(station,
-                    "gpslong", "gpsLong", "gpsLongitude", "gpslongitude", "longitude", "gps_longitude"));
-
+            double stationLatitude = parseCoordinate(firstText(station, "gpslati", "gpsLati", "latitude"));
+            double stationLongitude = parseCoordinate(firstText(station, "gpslong", "gpsLong", "longitude"));
             if (Double.isNaN(stationLatitude) || Double.isNaN(stationLongitude)) {
-                if (!requireCoordinates && nearest == null) {
-                    nearest = station;
-                }
                 continue;
             }
 
@@ -134,18 +112,11 @@ public class BusTransitService {
         return nearest;
     }
 
-    private boolean hasCoordinates(JsonNode station) {
-        return !Double.isNaN(parseCoordinate(firstText(station,
-                "gpslati", "gpsLati", "gpsLatitude", "gpslatitude", "latitude", "gps_latitude")))
-                && !Double.isNaN(parseCoordinate(firstText(station,
-                "gpslong", "gpsLong", "gpsLongitude", "gpslongitude", "longitude", "gps_longitude")));
-    }
-
     private void collectStations(JsonNode node, List<JsonNode> stations) {
         if (node == null || node.isNull()) return;
         if (node.isObject()) {
-            String nodeId = firstText(node, "nodeid", "nodeId", "node_id");
-            String cityCode = firstText(node, "citycode", "cityCode", "city_code");
+            String nodeId = firstText(node, "nodeid", "nodeId");
+            String cityCode = firstText(node, "citycode", "cityCode");
             if (!nodeId.isBlank() && !cityCode.isBlank()) {
                 stations.add(node);
                 return;
