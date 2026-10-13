@@ -114,30 +114,41 @@ public class TransitService {
     }
 
     private String findTagoStationId(String stationName) {
-        JsonNode root = requestJson(
-                "https://apis.data.go.kr/1613000/SubwayInfo/getKwrdFndSubwaySttnList"
-                        + "?serviceKey=" + encodedKey()
-                        + "&subwayStationName=" + encode(stationName)
-                        + "&pageNo=1&numOfRows=20&_type=json"
-        );
-        JsonNode items = root.path("response").path("body").path("items").path("item");
-        if (items.isArray()) {
-            for (JsonNode item : items) {
-                String name = firstText(item, "subwayStationName", "stationName");
-                if (normalizeStationName(name).equals(normalizeStationName(stationName))) {
-                    return firstText(item, "subwayStationId", "stationId");
+        String normalizedName = normalizeStationName(stationName);
+        List<String> candidates = new ArrayList<>();
+        candidates.add(stationName);
+        if (!normalizedName.isBlank() && !normalizedName.equals(stationName)) {
+            candidates.add(normalizedName);
+        }
+
+        for (String candidate : candidates) {
+            JsonNode root = requestJson(
+                    "https://apis.data.go.kr/1613000/SubwayInfo/GetKwrdFndSubwaySttnList"
+                            + "?serviceKey=" + encodedKey()
+                            + "&subwayStationName=" + encode(candidate)
+                            + "&pageNo=1&numOfRows=20&_type=json"
+            );
+            JsonNode items = root.path("response").path("body").path("items").path("item");
+            if (items.isArray()) {
+                for (JsonNode item : items) {
+                    String name = firstText(item, "subwayStationName", "stationName");
+                    if (normalizeStationName(name).equals(normalizedName)) {
+                        String id = firstText(item, "subwayStationId", "stationId");
+                        if (!id.isBlank()) return id;
+                    }
                 }
+            } else if (items.isObject()) {
+                String name = firstText(items, "subwayStationName", "stationName");
+                String id = firstText(items, "subwayStationId", "stationId");
+                if (normalizeStationName(name).equals(normalizedName) && !id.isBlank()) return id;
             }
-            if (!items.isEmpty()) return firstText(items.get(0), "subwayStationId", "stationId");
-        } else if (items.isObject()) {
-            return firstText(items, "subwayStationId", "stationId");
         }
         return null;
     }
 
     private JsonNode fetchSchedules(String stationId, String dayType, String direction) {
         JsonNode root = requestJson(
-                "https://apis.data.go.kr/1613000/SubwayInfo/getSubwaySttnAcctoSchdulList"
+                "https://apis.data.go.kr/1613000/SubwayInfo/GetSubwaySttnAcctoSchdulList"
                         + "?serviceKey=" + encodedKey()
                         + "&subwayStationId=" + encode(stationId)
                         + "&dailyTypeCode=" + dayType
