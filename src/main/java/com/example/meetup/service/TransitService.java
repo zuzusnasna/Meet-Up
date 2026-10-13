@@ -36,67 +36,82 @@ public class TransitService {
                                              double destinationLatitude, double destinationLongitude,
                                              String dayType) {
         String normalizedDayType = normalizeDayType(dayType);
-        KakaoPlaceDto originStation = nearestStation(originLatitude, originLongitude);
-        KakaoPlaceDto destinationStation = nearestStation(destinationLatitude, destinationLongitude);
+        List<KakaoPlaceDto> originNearby = nearbyStations(originLatitude, originLongitude);
+        List<KakaoPlaceDto> destinationNearby = nearbyStations(destinationLatitude, destinationLongitude);
+        List<TagoStation> originStations = resolveTagoStations(originNearby);
+        List<TagoStation> destinationStations = resolveTagoStations(destinationNearby);
 
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("originStation", stationSummary(originStation));
-        result.put("destinationStation", stationSummary(destinationStation));
+        result.put("originStation", stationSummary(originNearby.isEmpty() ? null : originNearby.get(0)));
+        result.put("destinationStation", stationSummary(destinationNearby.isEmpty() ? null : destinationNearby.get(0)));
+        result.put("originStationCandidates", originStations.stream().map(this::tagoStationSummary).toList());
+        result.put("destinationStationCandidates", destinationStations.stream().map(this::tagoStationSummary).toList());
         result.put("dayType", normalizedDayType);
 
-        if (originStation == null || destinationStation == null) {
-            return failure(result, "STATION_NOT_FOUND", "출발지 또는 약속장소 주변 지하철역을 찾지 못했습니다.");
+        if (originStations.isEmpty() || destinationStations.isEmpty()) {
+            return failure(result, "STATION_NOT_FOUND",
+                    "출발지 또는 약속장소 주변 역의 호선별 TAGO 정보를 찾지 못했습니다.");
         }
 
-        String destinationStationId = findTagoStationId(destinationStation.getPlaceName());
-        if (destinationStationId == null) {
-            return failure(result, "TAGO_STATION_NOT_FOUND", "TAGO 지하철 역 정보에서 약속장소 주변 역을 찾지 못했습니다.");
-        }
-
-        String originName = normalizeStationName(originStation.getPlaceName());
         List<JsonNode> matchingSchedules = new ArrayList<>();
+        TagoStation matchedOrigin = null;
+        TagoStation matchedDestination = null;
 
-        // 약속장소 역 시간표를 조회하고, 그 역을 출발하는 열차 중
-        // 종착역이 출발지 방향인 열차만 남긴다.
-        for (String direction : List.of("U", "D")) {
-            JsonNode schedules = fetchSchedules(destinationStationId, normalizedDayType, direction);
-            for (JsonNode schedule : schedules) {
-                String terminal = firstText(schedule,
-                        "endsubwaystationnm", "endSubwayStationNm",
-                        "destinationStationName", "endStationName", "terminalStationName",
-                        "arrivalStationName", "subwayStationName");
-                if (!terminal.isBlank() && isSameStation(terminal, originName)) {
-                    matchingSchedules.add(schedule);
+        // 같은 역명이라도 호선별 TAGO 역 ID가 다를 수 있으므로,
+        // 출발지와 목적지의 모든 호선 후보를 비교한다.
+        for (TagoStation destination : destinationStations) {
+            for (TagoStation origin : originStations) {
+                if (!sameRoute(destination.routeName(), origin.routeName())) continue;
+
+                for (String direction : List.of("U", "D")) {
+                    JsonNode schedules = fetchSchedules(destination.id(), normalizedDayType, direction);
+                    for (JsonNode schedule : schedules) {
+                        String terminal = firstText(schedule,
+                                "endsubwaystationnm", "endSubwayStationNm",
+                                "destinationStationName", "endStationName", "terminalStationName",
+                                "arrivalStationName", "subwayStationName");
+                        String scheduleRoute = firstText(schedule,
+                                "subwayRouteName", "subwayRouteNm", "routeName", "routeNm");
+                        if (isSameStation(terminal, origin.name())
+                                && (scheduleRoute.isBlank() || sameRoute(scheduleRoute, destination.routeName()))) {
+                            matchingSchedules.add(schedule);
+                            matchedOrigin = origin;
+                            matchedDestination = destination;
+                        }
+                    }
                 }
             }
         }
 
         if (matchingSchedules.isEmpty()) {
-            return failure(result, "DIRECT_ROUTE_NOT_FOUND", "직통으로 연결되는 시간표를 찾지 못했습니다. 환승 경로는 별도 경로 검색이 필요합니다.");
+            return failure(result, "DIRECT_ROUTE_NOT_FOUND",
+                    "출발지·목적지의 호선별 시간표에서 직통 운행을 찾지 못했습니다. 환승 경로는 아직 계산하지 않습니다.");
         }
 
-        // 막차는 해당 역에서 실제로 출발하는 시간(depTime)을 기준으로 판단한다.
         JsonNode last = matchingSchedules.stream()
                 .filter(schedule -> !scheduleTime(schedule).equals("000000"))
                 .max(Comparator.comparing(this::scheduleTime))
                 .orElse(null);
 
         if (last == null) {
-            return failure(result, "SCHEDULE_NOT_FOUND", "막차 시간표를 찾지 못했습니다.");
+            return failure(result, "SCHEDULE_NOT_FOUND", "호선별 시간표에서 막차 시간을 찾지 못했습니다.");
         }
 
-        String departureTime = scheduleTime(last);
         Map<String, Object> lastDeparture = new LinkedHashMap<>();
-        lastDeparture.put("departureTime", departureTime);
+        lastDeparture.put("departureTime", scheduleTime(last));
         lastDeparture.put("destinationStationName", firstText(last,
                 "endsubwaystationnm", "endSubwayStationNm",
                 "destinationStationName", "endStationName", "terminalStationName",
                 "arrivalStationName", "subwayStationName"));
-        lastDeparture.put("routeName", firstText(last, "subwayRouteName", "routeName"));
+        lastDeparture.put("routeName", firstText(last, "subwayRouteName", "subwayRouteNm", "routeName", "routeNm"));
         lastDeparture.put("direction", firstText(last, "upDownTypeCode", "upDownTypeName"));
+        lastDeparture.put("originRouteName", matchedOrigin == null ? "" : matchedOrigin.routeName());
+        lastDeparture.put("destinationRouteName", matchedDestination == null ? "" : matchedDestination.routeName());
+        lastDeparture.put("originTagoStationId", matchedOrigin == null ? "" : matchedOrigin.id());
+        lastDeparture.put("destinationTagoStationId", matchedDestination == null ? "" : matchedDestination.id());
 
         result.put("status", "OK");
-        result.put("message", "TAGO 시간표에서 확인한 직통 운행의 마지막 출발 후보입니다. 환승 경로를 포함한 최종 막차 보장은 아닙니다.");
+        result.put("message", "호선별 TAGO 역 ID와 시간표를 대조해 확인한 직통 운행 후보입니다. 환승 경로를 포함한 최종 막차 보장은 아닙니다.");
         result.put("lastDeparture", lastDeparture);
         return result;
     }
@@ -108,75 +123,90 @@ public class TransitService {
         return result;
     }
 
-    private KakaoPlaceDto nearestStation(double latitude, double longitude) {
+    private List<KakaoPlaceDto> nearbyStations(double latitude, double longitude) {
         Map<String, Object> response = kakaoPlaceService.searchNearbySubwayStations(latitude, longitude);
         Object documents = response.get("documents");
-        if (!(documents instanceof List<?> list) || list.isEmpty()) return null;
-        Object first = list.get(0);
-        return first instanceof KakaoPlaceDto dto ? dto : null;
-    }
+        if (!(documents instanceof List<?> list) || list.isEmpty()) return List.of();
 
-    private String findTagoStationId(String stationName) {
-        String normalizedName = normalizeStationName(stationName);
-        List<String> candidates = new ArrayList<>();
-        addCandidate(candidates, stationName);
-        addCandidate(candidates, normalizedName);
-        addCandidate(candidates, normalizedName + "역");
-
-        for (String candidate : candidates) {
-            JsonNode root = requestJson(
-                    "https://apis.data.go.kr/1613000/SubwayInfo/GetKwrdFndSubwaySttnList"
-                            + "?serviceKey=" + encodedKey()
-                            + "&subwayStationName=" + encode(candidate)
-                            + "&pageNo=1&numOfRows=100&_type=json"
-            );
-
-            String stationId = findStationId(root, normalizedName);
-            if (stationId != null) return stationId;
+        List<KakaoPlaceDto> stations = new ArrayList<>();
+        List<String> seenNames = new ArrayList<>();
+        for (Object item : list) {
+            if (!(item instanceof KakaoPlaceDto station) || station.getPlaceName() == null) continue;
+            String normalized = normalizeStationName(station.getPlaceName());
+            if (normalized.isBlank() || seenNames.contains(normalized)) continue;
+            seenNames.add(normalized);
+            stations.add(station);
+            // 인근 역 후보를 여러 개 보되, API 호출량이 무제한으로 늘지 않도록 제한한다.
+            if (stations.size() >= 8) break;
         }
-        return null;
+        return stations;
     }
 
-    private String findStationId(JsonNode node, String target) {
-        if (node == null || node.isNull()) return null;
+    private List<TagoStation> resolveTagoStations(List<KakaoPlaceDto> nearby) {
+        Map<String, TagoStation> unique = new LinkedHashMap<>();
+        for (KakaoPlaceDto place : nearby) {
+            String normalizedName = normalizeStationName(place.getPlaceName());
+            List<String> queries = new ArrayList<>();
+            addCandidate(queries, place.getPlaceName());
+            addCandidate(queries, normalizedName);
+            addCandidate(queries, normalizedName + "역");
 
+            for (String query : queries) {
+                JsonNode root = requestJson(
+                        "https://apis.data.go.kr/1613000/SubwayInfo/GetKwrdFndSubwaySttnList"
+                                + "?serviceKey=" + encodedKey()
+                                + "&subwayStationName=" + encode(query)
+                                + "&pageNo=1&numOfRows=100&_type=json"
+                );
+                collectTagoStations(root, normalizedName, unique);
+            }
+        }
+        return new ArrayList<>(unique.values());
+    }
+
+    private void collectTagoStations(JsonNode node, String target, Map<String, TagoStation> result) {
+        if (node == null || node.isNull()) return;
         if (node.isObject()) {
-            String name = firstText(node, "subwayStationName", "stationName", "subwaystationname", "stationname");
-            String id = firstText(node, "subwayStationID", "subwayStationId", "stationId", "subwaystationid", "stationid");
-            if (!name.isBlank() && !id.isBlank() && isSameStation(name, target)) return id;
-
+            String name = firstText(node, "subwayStationName", "subwaystationname", "stationName", "stationname");
+            String id = firstText(node, "subwayStationId", "subwayStationID", "subwaystationid", "stationId", "stationid");
+            String route = firstText(node, "subwayRouteName", "subwayRouteNm", "subwayroutename", "routeName", "routename");
+            if (!name.isBlank() && !id.isBlank() && isSameStation(name, target)) {
+                TagoStation station = new TagoStation(id, normalizeStationName(name), route);
+                result.putIfAbsent(id, station);
+            }
             Iterator<JsonNode> values = node.elements();
-            while (values.hasNext()) {
-                String found = findStationId(values.next(), target);
-                if (found != null) return found;
-            }
-            return null;
+            while (values.hasNext()) collectTagoStations(values.next(), target, result);
+        } else if (node.isArray()) {
+            for (JsonNode child : node) collectTagoStations(child, target, result);
         }
-
-        if (node.isArray()) {
-            for (JsonNode child : node) {
-                String found = findStationId(child, target);
-                if (found != null) return found;
-            }
-        }
-        return null;
     }
 
-    private boolean isSameStation(String name, String target) {
-        String normalized = normalizeStationName(name);
-        return !normalized.isBlank() && !target.isBlank()
-                && (normalized.equals(target)
-                || normalized.startsWith(target + "(")
-                || normalized.startsWith(target + "[")
-                || target.startsWith(normalized + "(")
-                || target.startsWith(normalized + "[")
-                || normalized.contains(target)
-                || target.contains(normalized));
+    private boolean sameRoute(String first, String second) {
+        if (first == null || second == null || first.isBlank() || second.isBlank()) return false;
+        String a = normalizeRouteName(first);
+        String b = normalizeRouteName(second);
+        return !a.isBlank() && a.equals(b);
     }
 
-    private void addCandidate(List<String> candidates, String value) {
-        if (value != null && !value.isBlank() && !candidates.contains(value)) candidates.add(value);
+    private String normalizeRouteName(String route) {
+        return route == null ? "" : route
+                .replaceAll("\\s+", "")
+                .replace("서울", "")
+                .replace("수도권", "")
+                .replace("지하철", "")
+                .trim()
+                .toLowerCase(Locale.ROOT);
     }
+
+    private Map<String, Object> tagoStationSummary(TagoStation station) {
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("name", station.name());
+        summary.put("routeName", station.routeName());
+        summary.put("tagoStationId", station.id());
+        return summary;
+    }
+
+    private record TagoStation(String id, String name, String routeName) {}
 
     private JsonNode fetchSchedules(String stationId, String dayType, String direction) {
         JsonNode root = requestJson(
