@@ -20,7 +20,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class BusTransitService {
 
-    @Value("${tour.api-key}")
+    @Value("${tago.service-key}")
     private String serviceKey;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
