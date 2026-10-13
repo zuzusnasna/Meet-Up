@@ -8,6 +8,7 @@ import WeatherPanel from "./components/WeatherPanel";
 import RoomEntry from "./components/RoomEntry";
 import SettlementPanel from "./components/SettlementPanel";
 import FinalPlaceNearby from "./components/FinalPlaceNearby";
+import LastTrainPanel from "./components/LastTrainPanel";
 
 const KAKAO_JS_KEY = import.meta.env.VITE_KAKAO_JS_KEY;
 
@@ -1142,13 +1143,24 @@ function App() {
         >
           정산하기
         </button>
+        <button
+          type="button"
+          className={"top-nav-link" + (activeTab === "lastTrain" ? " active" : "")}
+          onClick={() => finalPlace && setActiveTab("lastTrain")}
+          disabled={!finalPlace}
+          aria-disabled={!finalPlace}
+          aria-current={activeTab === "lastTrain" ? "page" : undefined}
+          title={!finalPlace ? "최종 약속장소를 먼저 정해주세요." : "참여자별 귀가 경로 확인"}
+        >
+          막차 안내
+        </button>
       </nav>
 
       <div className="top-participants-panel">
         <ParticipantsPanel participants={participants} userId={userId} />
       </div>
 
-      <div className={"content" + (activeTab === "settlement" ? " content-hidden" : "")} id="meeting-place">
+      <div className={"content" + (activeTab !== "meeting" ? " content-hidden" : "")} id="meeting-place">
         <div className="map-column">
           <div ref={mapRef} className="map" />
           {finalPlace && activeTab === "meeting" && (
@@ -1397,6 +1409,9 @@ function App() {
       </div>
       {activeTab === "settlement" && (
         <SettlementPanel roomId={roomId} participants={participants} />
+      )}
+      {activeTab === "lastTrain" && (
+        <LastTrainPanel finalPlace={finalPlace} participants={participants} locations={locations} />
       )}
     </div>
   );
