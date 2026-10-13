@@ -2702,3 +2702,24 @@ textarea:focus-visible {
   .last-train-options { grid-template-columns: 1fr; }
   .last-train-card { padding: 14px; }
 }
+
+
+/* Return-trip route details */
+.last-train-route-message { margin: 12px 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.last-train-route-option { margin-top: 14px; padding: 13px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.last-train-route-summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid #eef0f4; }
+.last-train-route-summary strong { font-size: 13px; }
+.last-train-route-summary span { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.last-train-segments { display: flex; flex-direction: column; gap: 10px; padding-top: 10px; }
+.last-train-segment { min-width: 0; padding: 11px; border-radius: 9px; background: #f8f9fc; }
+.last-train-segment-heading { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; }
+.last-train-segment-heading span { color: var(--muted); font-size: 11px; }
+.last-train-segment p { margin: 6px 0 0; color: #687184; font-size: 11px; line-height: 1.55; overflow-wrap: anywhere; }
+.last-train-segment .last-train-segment-route { color: var(--primary-dark); font-weight: 800; }
+.last-train-segment .last-train-segment-stops { color: #535d70; }
+.last-train-segment .last-train-segment-last { margin-top: 9px; padding-top: 8px; border-top: 1px solid #e9ebf1; color: #353d4c; }
+.last-train-segment-last strong { color: var(--primary-dark); }
+.last-train-segment-last small { display: block; margin-top: 4px; color: var(--muted); font-weight: 400; }
+@media (max-width: 520px) {
+  .last-train-route-summary { align-items: flex-start; flex-direction: column; gap: 4px; }
+}
