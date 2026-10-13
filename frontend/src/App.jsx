@@ -809,7 +809,6 @@ function App() {
           '<div class="midpoint-map-info">' +
           '<div class="midpoint-map-info-title"><span aria-hidden="true">📍</span> 추천 중간 좌표</div>' +
           '<div class="midpoint-map-info-address">' + escapeHtml(address) + '</div>' +
-          '<div class="midpoint-map-info-note">참여자 출발지의 지리적 중심점</div>' +
           '</div>',
       });
 
