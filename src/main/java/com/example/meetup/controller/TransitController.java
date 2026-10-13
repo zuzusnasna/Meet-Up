@@ -1,5 +1,6 @@
 package com.example.meetup.controller;
 
+import com.example.meetup.service.BusTransitService;
 import com.example.meetup.service.TransitService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,6 +16,7 @@ import java.util.Map;
 public class TransitController {
 
     private final TransitService transitService;
+    private final BusTransitService busTransitService;
 
     @GetMapping("/last-train")
     public Map<String, Object> findLastTrain(
@@ -24,12 +26,11 @@ public class TransitController {
             @RequestParam double destinationLongitude,
             @RequestParam(required = false) String dayType
     ) {
-        return transitService.findLastTrain(
-                originLatitude,
-                originLongitude,
-                destinationLatitude,
-                destinationLongitude,
-                dayType
-        );
+        return transitService.findLastTrain(originLatitude, originLongitude, destinationLatitude, destinationLongitude, dayType);
+    }
+
+    @GetMapping("/bus-arrivals")
+    public Map<String, Object> findBusArrivals(@RequestParam double latitude, @RequestParam double longitude) {
+        return busTransitService.findBusArrivals(latitude, longitude);
     }
 }
