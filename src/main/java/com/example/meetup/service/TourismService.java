@@ -16,8 +16,10 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -28,97 +30,57 @@ public class TourismService {
 
     private final KakaoPlaceService kakaoPlaceService;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final RedisCacheService redisCacheService;
 
-    public TourismResponseDto searchNearby(
-            double latitude,
-            double longitude,
-            String category
-    ) {
-        if ("RESTAURANT".equalsIgnoreCase(category)) {
-            return searchRestaurants(latitude, longitude);
+    public TourismResponseDto searchNearby(double latitude, double longitude, String category) {
+        String normalizedCategory = category == null ? "" : category.toUpperCase();
+        String cacheKey = "tourism:nearby:" + coordinate(latitude) + ":" + coordinate(longitude) + ":" + normalizedCategory;
+        TourismResponseDto cached = redisCacheService.get(cacheKey, TourismResponseDto.class);
+        if (cached != null) return cached;
+
+        TourismResponseDto result;
+        if ("RESTAURANT".equals(normalizedCategory)) {
+            result = searchRestaurants(latitude, longitude);
+        } else {
+            int contentTypeId = switch (normalizedCategory) {
+                case "EVENT" -> 15;
+                case "TOURIST" -> 12;
+                default -> throw new IllegalArgumentException("지원하지 않는 카테고리입니다: " + category);
+            };
+            result = searchTourApi(latitude, longitude, normalizedCategory, contentTypeId);
         }
 
-        int contentTypeId = switch (category.toUpperCase()) {
-            case "EVENT" -> 15;
-            case "TOURIST" -> 12;
-            default -> throw new IllegalArgumentException(
-                    "지원하지 않는 카테고리입니다: " + category
-            );
-        };
-
-        return searchTourApi(latitude, longitude, category.toUpperCase(), contentTypeId);
+        redisCacheService.put(cacheKey, result, Duration.ofMinutes(10));
+        return result;
     }
 
-    private TourismResponseDto searchTourApi(
-            double latitude,
-            double longitude,
-            String category,
-            int contentTypeId
-    ) {
+    private TourismResponseDto searchTourApi(double latitude, double longitude, String category, int contentTypeId) {
         HttpURLConnection connection = null;
-
         try {
-            String encodedKey = URLEncoder.encode(
-                    tourApiKey.trim(),
-                    StandardCharsets.UTF_8
-            );
+            String encodedKey = URLEncoder.encode(tourApiKey.trim(), StandardCharsets.UTF_8);
+            String urlString = "https://apis.data.go.kr/B551011/KorService2/locationBasedList2"
+                    + "?serviceKey=" + encodedKey + "&MobileOS=ETC&MobileApp=MeetUp&_type=json"
+                    + "&numOfRows=10&pageNo=1&mapX=" + longitude + "&mapY=" + latitude
+                    + "&radius=2000&contentTypeId=" + contentTypeId;
 
-            String urlString =
-                    "https://apis.data.go.kr/B551011/KorService2/locationBasedList2"
-                            + "?serviceKey=" + encodedKey
-                            + "&MobileOS=ETC"
-                            + "&MobileApp=MeetUp"
-                            + "&_type=json"
-                            + "&numOfRows=10"
-                            + "&pageNo=1"
-                            + "&mapX=" + longitude
-                            + "&mapY=" + latitude
-                            + "&radius=2000"
-                            + "&contentTypeId=" + contentTypeId;
-
-            connection = (HttpURLConnection)
-                    URI.create(urlString).toURL().openConnection();
-
+            connection = (HttpURLConnection) URI.create(urlString).toURL().openConnection();
             connection.setRequestMethod("GET");
             connection.setRequestProperty("Accept", "application/json");
-
             int statusCode = connection.getResponseCode();
             String responseBody = readResponse(connection, statusCode);
-
-            if (statusCode < 200 || statusCode >= 300) {
-                throw new RuntimeException(
-                        "TourAPI 요청 실패: HTTP " + statusCode + " - " + responseBody
-                );
-            }
+            if (statusCode < 200 || statusCode >= 300) throw new RuntimeException("TourAPI 요청 실패: HTTP " + statusCode + " - " + responseBody);
 
             JsonNode root = objectMapper.readTree(responseBody);
-            JsonNode itemNode = root
-                    .path("response")
-                    .path("body")
-                    .path("items")
-                    .path("item");
-
+            JsonNode itemNode = root.path("response").path("body").path("items").path("item");
             List<TourismItemDto> items = new ArrayList<>();
+            if (itemNode.isArray()) for (JsonNode item : itemNode) items.add(toTourismItem(item));
+            else if (itemNode.isObject()) items.add(toTourismItem(itemNode));
 
-            if (itemNode.isArray()) {
-                for (JsonNode item : itemNode) {
-                    items.add(toTourismItem(item));
-                }
-            } else if (itemNode.isObject()) {
-                items.add(toTourismItem(itemNode));
-            }
-
-            return TourismResponseDto.builder()
-                    .category(category)
-                    .items(items)
-                    .build();
-
+            return TourismResponseDto.builder().category(category).items(items).build();
         } catch (Exception e) {
             throw new RuntimeException("TourAPI 호출 실패", e);
         } finally {
-            if (connection != null) {
-                connection.disconnect();
-            }
+            if (connection != null) connection.disconnect();
         }
     }
 
@@ -133,83 +95,36 @@ public class TourismService {
                 .phone(text(item, "tel"))
                 .startDate(text(item, "eventstartdate"))
                 .endDate(text(item, "eventenddate"))
-                .placeUrl(
-                        "https://map.kakao.com/link/map/"
-                                + encode(text(item, "title"))
-                                + ","
-                                + text(item, "mapy")
-                                + ","
-                                + text(item, "mapx")
-                )
+                .placeUrl("https://map.kakao.com/link/map/" + encode(text(item, "title")) + "," + text(item, "mapy") + "," + text(item, "mapx"))
                 .build();
     }
 
-    private TourismResponseDto searchRestaurants(
-            double latitude,
-            double longitude
-    ) {
-        try {
-            KakaoPlaceResponse response =
-                    kakaoPlaceService.searchNearbyRestaurants(latitude, longitude);
-
-            List<TourismItemDto> items = new ArrayList<>();
-
-            if (response.getDocuments() != null) {
-                for (KakaoPlaceDto place : response.getDocuments()) {
-                    items.add(TourismItemDto.builder()
-                            .contentId(place.getId())
-                            .title(place.getPlaceName())
-                            .address(place.getRoadAddressName() != null
-                                    && !place.getRoadAddressName().isBlank()
-                                    ? place.getRoadAddressName()
-                                    : place.getAddressName())
-                            .latitude(place.getY())
-                            .longitude(place.getX())
-                            .phone(place.getPhone())
-                            .placeUrl(place.getPlaceUrl())
-                            .build());
-                }
+    private TourismResponseDto searchRestaurants(double latitude, double longitude) {
+        KakaoPlaceResponse response = kakaoPlaceService.searchNearbyRestaurants(latitude, longitude);
+        List<TourismItemDto> items = new ArrayList<>();
+        if (response.getDocuments() != null) {
+            for (KakaoPlaceDto place : response.getDocuments()) {
+                items.add(TourismItemDto.builder()
+                        .contentId(place.getId())
+                        .title(place.getPlaceName())
+                        .address(place.getRoadAddressName() != null && !place.getRoadAddressName().isBlank() ? place.getRoadAddressName() : place.getAddressName())
+                        .latitude(place.getY())
+                        .longitude(place.getX())
+                        .phone(place.getPhone())
+                        .placeUrl(place.getPlaceUrl())
+                        .build());
             }
-
-            return TourismResponseDto.builder()
-                    .category("RESTAURANT")
-                    .items(items)
-                    .build();
-
-        } catch (Exception e) {
-            throw new RuntimeException("주변 맛집 조회 실패", e);
         }
+        return TourismResponseDto.builder().category("RESTAURANT").items(items).build();
     }
 
-    private String readResponse(
-            HttpURLConnection connection,
-            int statusCode
-    ) throws Exception {
-        BufferedReader reader;
-
-        if (statusCode >= 200 && statusCode < 300) {
-            reader = new BufferedReader(
-                    new InputStreamReader(
-                            connection.getInputStream(),
-                            StandardCharsets.UTF_8
-                    )
-            );
-        } else {
-            reader = new BufferedReader(
-                    new InputStreamReader(
-                            connection.getErrorStream(),
-                            StandardCharsets.UTF_8
-                    )
-            );
-        }
-
+    private String readResponse(HttpURLConnection connection, int statusCode) throws Exception {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(
+                statusCode >= 200 && statusCode < 300 ? connection.getInputStream() : connection.getErrorStream(),
+                StandardCharsets.UTF_8));
         StringBuilder response = new StringBuilder();
         String line;
-
-        while ((line = reader.readLine()) != null) {
-            response.append(line);
-        }
-
+        while ((line = reader.readLine()) != null) response.append(line);
         reader.close();
         return response.toString();
     }
@@ -220,10 +135,10 @@ public class TourismService {
     }
 
     private String encode(String value) {
-        try {
-            return URLEncoder.encode(value, StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            return value;
-        }
+        return URLEncoder.encode(value == null ? "" : value, StandardCharsets.UTF_8);
+    }
+
+    private String coordinate(double value) {
+        return String.format(Locale.ROOT, "%.4f", value);
     }
 }
