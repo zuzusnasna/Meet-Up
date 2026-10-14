@@ -4,6 +4,7 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
   const [routeResults, setRouteResults] = useState({});
   const [loadingResults, setLoadingResults] = useState(false);
   const [pinnedSegment, setPinnedSegment] = useState(null);
+  const [hoveredSegment, setHoveredSegment] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,7 +99,7 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
   const modeLabel = (type) => type === "SUBWAY" ? "지하철" : type === "BUS" ? "버스" : type === "WALKING" ? "도보" : type || "이동";
 
   return (
-    <section className="last-train-page" onClick={() => setPinnedSegment(null)}>
+    <section className="last-train-page" onClick={() => { setPinnedSegment(null); setHoveredSegment(null); }}>
       <div className="last-train-heading">
         <div><span className="last-train-eyebrow">RETURN TRIP</span><h2>막차 안내</h2><p>약속장소에서 참여자별 출발지로 돌아가는 대중교통 경로를 확인합니다.</p></div>
         <div className="last-train-destination"><span>최종 약속장소</span><strong>{finalPlace?.placeName || "미정"}</strong><small>{finalPlace?.address || ""}</small></div>
@@ -127,10 +128,13 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
                             const busNumbers = getBusNumbers(segment);
                             const segmentKey = `${participant.userId}-${routeIndex}-${segmentIndex}`;
                             const isPinned = pinnedSegment === segmentKey;
+                            const isActive = hoveredSegment === segmentKey || (hoveredSegment === null && isPinned);
                             return <div
                               className={`last-train-horizontal-segment ${getSegmentClass(segment)}${isPinned ? " is-pinned" : ""}`}
                               key={segmentIndex}
                               tabIndex="0"
+                              onMouseEnter={() => setHoveredSegment(segmentKey)}
+                              onMouseLeave={() => setHoveredSegment(null)}
                               onClick={(event) => {
                                 event.stopPropagation();
                                 setPinnedSegment(isPinned ? null : segmentKey);
@@ -139,11 +143,11 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
                               <div className="last-train-horizontal-line" />
                               <div className="last-train-horizontal-label"><span>{modeLabel(segment.type)}</span><strong>{formatDuration(segment.timeSeconds)}</strong></div>
                               {busNumbers.length > 0 && <div className="last-train-bus-numbers" aria-label="이용 가능한 버스 번호">{busNumbers.map((number, numberIndex) => <span key={`${number}-${numberIndex}`}>{number}</span>)}</div>}
-                              <div className="last-train-horizontal-tooltip">
+                              {isActive && <div className="last-train-horizontal-tooltip">
                                 <strong>{modeLabel(segment.type)} · {formatDuration(segment.timeSeconds)}</strong>
                                 {segment.guidance && <p>{segment.guidance}</p>}
                                 {segment.stops?.length > 0 && <div className="last-train-horizontal-stops">{segment.stops.map((stop, stopIndex) => <span key={`${stop}-${stopIndex}`}>{stop}</span>)}</div>}
-                              </div>
+                              </div>}
                             </div>;
                           })}
                         </div>
