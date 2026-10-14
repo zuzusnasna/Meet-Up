@@ -29,7 +29,7 @@ public class KakaoTransitRouteService {
     @Value("${kakao.rest-api-key}")
     private String restApiKey;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
     private final RedisCacheService redisCacheService;
     private final LastTrainService lastTrainService;
 
@@ -44,7 +44,7 @@ public class KakaoTransitRouteService {
                 coordinate(originLatitude),
                 coordinate(originLongitude));
         Map<String, Object> cached = redisCacheService.get(cacheKey, MAP_TYPE);
-        if (cached != null) return cached;
+        if (hasUsableRoutes(cached)) return cached;
 
         JsonNode root = requestRoutes(meetingLongitude, meetingLatitude, originLongitude, originLatitude);
         Map<String, Object> result = new LinkedHashMap<>();
@@ -56,7 +56,7 @@ public class KakaoTransitRouteService {
         if (!routes.isArray()) {
             result.put("routes", routeList);
             result.put("message", "카카오에서 대중교통 경로를 찾지 못했습니다.");
-            redisCacheService.put(cacheKey, result, ROUTE_CACHE_TTL);
+            redisCacheService.delete(cacheKey);
             return result;
         }
 
@@ -87,8 +87,21 @@ public class KakaoTransitRouteService {
 
         result.put("routes", routeList);
         result.put("message", "약속장소에서 출발지까지의 대중교통 경로를 조회했습니다.");
-        redisCacheService.put(cacheKey, result, ROUTE_CACHE_TTL);
+
+        // 빈 결과는 영구 캐시하지 않는다. 이후 같은 목적지/출발지로 다시 조회하면
+        // 카카오 API에서 새 경로를 받을 수 있도록 한다.
+        if (!routeList.isEmpty()) {
+            redisCacheService.put(cacheKey, result, ROUTE_CACHE_TTL);
+        } else {
+            redisCacheService.delete(cacheKey);
+        }
         return result;
+    }
+
+    private boolean hasUsableRoutes(Map<String, Object> cached) {
+        if (cached == null) return false;
+        Object routes = cached.get("routes");
+        return routes instanceof java.util.Collection<?> collection && !collection.isEmpty();
     }
 
     private Map<String, Object> parseSegment(JsonNode step) {
