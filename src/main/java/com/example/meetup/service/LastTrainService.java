@@ -114,7 +114,7 @@ public class LastTrainService {
     }
 
     private List<Map<String, String>> findStations(String stationName) {
-        String key = "transit:station:" + normalize(stationName);
+        String key = redisCacheService.versionedKey("transit:station", normalize(stationName));
         List<Map<String, String>> cached = redisCacheService.get(key, STATION_TYPE);
         if (cached != null) return cached;
 
@@ -143,7 +143,7 @@ public class LastTrainService {
     }
 
     private List<Map<String, Object>> findSchedules(String stationId, String dayType, String direction) {
-        String key = "transit:lasttrain:" + stationId + ":" + dayType + ":" + direction;
+        String key = redisCacheService.versionedKey("transit:lasttrain", stationId, dayType, direction);
         List<Map<String, Object>> cached = redisCacheService.get(key, SCHEDULE_TYPE);
         if (cached != null) return cached;
 
