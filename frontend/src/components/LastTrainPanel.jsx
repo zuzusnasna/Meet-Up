@@ -197,7 +197,13 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
                       <div className="last-train-route-summary"><strong>{routeIndex + 1}번 경로</strong><span>{formatDuration(route.totalTimeSeconds)} · 환승 {route.transferCount ?? 0}회</span></div>
                       {(() => {
                         const deadline = getLastDepartureDeadline(route, result?.lastTrain);
-                        return deadline ? <div className="last-train-deadline"><strong>막차 출발 마감 추정 {deadline.time}</strong><span>{deadline.ignoredNightBus ? "심야버스 제외 · " : ""}환승 여유 10분 포함</span></div> : null;
+                        if (deadline) {
+                          return <div className="last-train-deadline"><strong>막차 출발 마감 추정 {deadline.time}</strong><span>{deadline.ignoredNightBus ? "심야버스 제외 · " : ""}환승 여유 10분 포함</span></div>;
+                        }
+                        const schedule = result?.lastTrain;
+                        const message = schedule?.message
+                          || (schedule ? "막차 시간표에서 해당 방향의 직통 운행을 찾지 못했습니다." : "막차 시간표 API 응답을 받지 못했습니다.");
+                        return <div className="last-train-deadline last-train-deadline-unavailable"><strong>막차 시간 확인 불가</strong><span>{message}</span></div>;
                       })()}
                       <div className="last-train-horizontal-route">
                         <div className="last-train-route-endpoint"><span className="last-train-route-dot" /><strong>{finalPlace?.placeName || "약속장소"}</strong></div>
