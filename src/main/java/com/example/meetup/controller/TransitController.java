@@ -26,10 +26,11 @@ public class TransitController {
             @RequestParam double meetingLatitude,
             @RequestParam double meetingLongitude,
             @RequestParam double originLatitude,
-            @RequestParam double originLongitude
+            @RequestParam double originLongitude,
+            @RequestParam(defaultValue = "false") boolean refresh
     ) {
         return kakaoTransitRouteService.findReturnRoutes(
-                meetingLatitude, meetingLongitude, originLatitude, originLongitude);
+                meetingLatitude, meetingLongitude, originLatitude, originLongitude, refresh);
     }
 
     @PostMapping("/return-routes/batch")
@@ -42,7 +43,7 @@ public class TransitController {
             results.put(String.valueOf(origin.userId()),
                     kakaoTransitRouteService.findReturnRoutes(
                             request.meetingLatitude(), request.meetingLongitude(),
-                            origin.latitude(), origin.longitude()));
+                            origin.latitude(), origin.longitude(), request.refresh()));
         }
         return results;
     }
