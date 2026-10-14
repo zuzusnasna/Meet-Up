@@ -219,7 +219,7 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
 
                           <div className="transit-routes-horizontal">
                             <div className="transit-routes-endpoint">
-                              <span className="transit-routes-dot transit-routes-endpoint-marker" aria-hidden="true" />
+                              
                               <div>
                                 <span className="transit-routes-endpoint-label">최종 목적지</span>
                                 <strong>{finalPlace?.placeName || "약속장소"}</strong>
@@ -245,7 +245,7 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
                               })}
                             </div>
                             <div className="transit-routes-endpoint">
-                              <span className="transit-routes-dot transit-routes-endpoint-marker" aria-hidden="true" />
+                              
                               <div>
                                 <span className="transit-routes-endpoint-label">사용자 출발지</span>
                                 <strong>{location?.address || "출발지"}</strong>
