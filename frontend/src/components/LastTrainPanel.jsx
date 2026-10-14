@@ -43,7 +43,13 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
                 originLongitude: String(finalPlace.longitude),
                 destinationLatitude: String(location.latitude),
                 destinationLongitude: String(location.longitude),
-                routeSegments: JSON.stringify(validatedSegments),
+                routeSegments: JSON.stringify(validatedSegments.map((segment) => ({
+                  type: segment.type,
+                  timeSeconds: segment.timeSeconds,
+                  stops: segment.stops || [],
+                  vehicles: segment.vehicles || [],
+                  guidance: segment.guidance || "",
+                })),
               });
               const scheduleResponse = await fetch("/api/transit/last-train/route?" + scheduleParams.toString());
               const lastTrain = await scheduleResponse.json();
