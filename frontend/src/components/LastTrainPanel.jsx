@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 export default function LastTrainPanel({ finalPlace, participants = [], locations = [] }) {
   const [routeResults, setRouteResults] = useState({});
   const [loadingResults, setLoadingResults] = useState(false);
+  const [pinnedSegment, setPinnedSegment] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -97,12 +98,12 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
   const modeLabel = (type) => type === "SUBWAY" ? "지하철" : type === "BUS" ? "버스" : type === "WALKING" ? "도보" : type || "이동";
 
   return (
-    <section className="last-train-page">
+    <section className="last-train-page" onClick={() => setPinnedSegment(null)}>
       <div className="last-train-heading">
         <div><span className="last-train-eyebrow">RETURN TRIP</span><h2>막차 안내</h2><p>약속장소에서 참여자별 출발지로 돌아가는 대중교통 경로를 확인합니다.</p></div>
         <div className="last-train-destination"><span>최종 약속장소</span><strong>{finalPlace?.placeName || "미정"}</strong><small>{finalPlace?.address || ""}</small></div>
       </div>
-      <div className="last-train-notice" role="note"><strong>조회 기준</strong><p>약속장소 → 출발지 방향의 경로를 빠른 순서로 최대 3개 표시합니다. 각 이동 구간에 마우스를 올리면 상세 경로가 표시됩니다.</p></div>
+      <div className="last-train-notice" role="note"><strong>조회 기준</strong><p>약속장소 → 출발지 방향의 경로를 빠른 순서로 최대 3개 표시합니다. 각 이동 구간에 마우스를 올리면 상세 경로가 표시되며, 클릭하면 고정됩니다.</p></div>
       {loadingResults && <div className="last-train-loading">귀가 경로와 환승 구간을 조회하고 있습니다...</div>}
       {participants.length === 0 ? <div className="last-train-empty">참여자 정보를 불러오지 못했습니다.</div> : (
         <div className="last-train-list">
@@ -124,7 +125,17 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
                         <div className="last-train-horizontal-track">
                           {(route.segments || []).map((segment, segmentIndex) => {
                             const busNumbers = getBusNumbers(segment);
-                            return <div className={`last-train-horizontal-segment ${getSegmentClass(segment)}`} key={segmentIndex} tabIndex="0">
+                            const segmentKey = `${participant.userId}-${routeIndex}-${segmentIndex}`;
+                            const isPinned = pinnedSegment === segmentKey;
+                            return <div
+                              className={`last-train-horizontal-segment ${getSegmentClass(segment)}${isPinned ? " is-pinned" : ""}`}
+                              key={segmentIndex}
+                              tabIndex="0"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setPinnedSegment(isPinned ? null : segmentKey);
+                              }}
+                            >
                               <div className="last-train-horizontal-line" />
                               <div className="last-train-horizontal-label"><span>{modeLabel(segment.type)}</span><strong>{formatDuration(segment.timeSeconds)}</strong></div>
                               {busNumbers.length > 0 && <div className="last-train-bus-numbers" aria-label="이용 가능한 버스 번호">{busNumbers.map((number, numberIndex) => <span key={`${number}-${numberIndex}`}>{number}</span>)}</div>}
