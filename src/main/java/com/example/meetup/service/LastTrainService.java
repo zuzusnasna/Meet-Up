@@ -128,7 +128,7 @@ public class LastTrainService {
         if (cached != null) return cached;
 
         JsonNode root = requestJson(
-                "https://apis.data.go.kr/1613000/SubwayInfo/getKwrdFndSubwaySttnList"
+                "https://apis.data.go.kr/1613000/SubwayInfo/GetKwrdFndSubwaySttnList"
                         + "?serviceKey=" + encodedKey()
                         + "&subwayStationName=" + encode(stationName)
                         + "&pageNo=1&numOfRows=100&_type=json");
@@ -158,7 +158,7 @@ public class LastTrainService {
         if (cached != null) return cached;
 
         JsonNode root = requestJson(
-                "https://apis.data.go.kr/1613000/SubwayInfo/getSubwaySttnAcctoSchdulList"
+                "https://apis.data.go.kr/1613000/SubwayInfo/GetSubwaySttnAcctoSchdulList"
                         + "?serviceKey=" + encodedKey()
                         + "&subwayStationId=" + encode(stationId)
                         + "&dailyTypeCode=" + encode(dayType)
