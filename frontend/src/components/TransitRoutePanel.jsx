@@ -238,7 +238,7 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
                                       <div className="transit-routes-segment-last-train">
                                         {formatLastTrain(segment.lastTrain)
                                           ? <>막차 <strong>{formatLastTrain(segment.lastTrain)}</strong></>
-                                          : "막차 정보 없음"}
+                                          : (segment.lastTrain?.message || "막차 정보 없음")}
                                       </div>
                                     )}
                                     {busInfo.length > 0 && <div className="transit-routes-bus-numbers" aria-label="이용 가능한 버스 번호">{busInfo.map((bus, index) => <span className={`transit-routes-bus-${bus.kind}`} key={`${bus.number}-${index}`}>{bus.number}</span>)}</div>}
