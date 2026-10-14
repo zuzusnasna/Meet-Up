@@ -197,7 +197,7 @@ public class TransitService {
                         if (!scheduleRoute.isBlank() && !station.routeName().isBlank()
                                 && !routesMatch(scheduleRoute, station.routeName())) continue;
                         candidates.add(new TrainCandidate(
-                                normalizedScheduleTime(time), schedule, station, leg));
+                                scheduleMinutes(time), schedule, station, leg));
                     }
                 }
             }
@@ -213,9 +213,11 @@ public class TransitService {
         List<TrainCandidate> firstLegCandidates = new ArrayList<>(candidatesByLeg.get(0));
         firstLegCandidates.sort(Comparator.comparingInt(TrainCandidate::minutes).reversed());
         TrainCandidate selectedFirst = null;
+        TrainCandidate selectedLast = null;
         for (TrainCandidate first : firstLegCandidates) {
             int currentArrival = first.minutes() + first.leg().durationMinutes();
             boolean connected = true;
+            TrainCandidate chainLast = first;
             for (int legIndex = 1; legIndex < legs.size(); legIndex++) {
                 RouteLeg previousLeg = legs.get(legIndex - 1);
                 RouteLeg currentLeg = legs.get(legIndex);
@@ -235,10 +237,12 @@ public class TransitService {
                     connected = false;
                     break;
                 }
+                chainLast = next;
                 currentArrival = next.minutes() + currentLeg.durationMinutes();
             }
             if (connected) {
                 selectedFirst = first;
+                selectedLast = chainLast;
                 break;
             }
         }
@@ -248,7 +252,7 @@ public class TransitService {
                     "각 지하철 구간의 시간표를 연결할 수 있는 막차 조합을 찾지 못했습니다.");
         }
 
-        JsonNode schedule = selectedFirst.schedule();
+        JsonNode schedule = selectedLast.schedule();
         Map<String, Object> departure = new LinkedHashMap<>();
         departure.put("departureTime", scheduleTime(schedule));
         departure.put("destinationStationName", firstText(schedule,
@@ -256,9 +260,9 @@ public class TransitService {
                 "destinationStationName", "endStationName", "terminalStationName", "arrivalStationName"));
         departure.put("routeName", firstText(schedule, "subwayRouteName", "subwayRouteNm", "routeName", "routeNm"));
         departure.put("direction", firstText(schedule, "upDownTypeCode", "upDownTypeName"));
-        departure.put("originStationName", selectedFirst.leg().startStation());
-        departure.put("originTagoStationId", selectedFirst.station().id());
-        departure.put("destinationStationNameOnRoute", selectedFirst.leg().endStation());
+        departure.put("originStationName", selectedLast.leg().startStation());
+        departure.put("originTagoStationId", selectedLast.station().id());
+        departure.put("destinationStationNameOnRoute", selectedLast.leg().endStation());
 
         result.put("status", "OK");
         result.put("message", "귀가 경로의 지하철 구간별 시간표와 환승 연결을 확인한 출발 시각입니다. 실제 운행 지연과 역 내 이동시간에 따라 달라질 수 있습니다.");
@@ -480,6 +484,17 @@ public class TransitService {
         if (digits.length() == 4) return digits + "00";
         if (digits.length() == 5) return "0" + digits;
         return digits.length() > 6 ? digits.substring(0, 6) : digits;
+    }
+
+    private int scheduleMinutes(String value) {
+        String normalized = normalizedScheduleTime(value);
+        try {
+            int hours = Integer.parseInt(normalized.substring(0, 2));
+            int minutes = Integer.parseInt(normalized.substring(2, 4));
+            return hours * 60 + minutes;
+        } catch (RuntimeException e) {
+            return -1;
+        }
     }
 
     private String normalizedScheduleTime(String value) {
