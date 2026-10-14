@@ -94,7 +94,7 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
       return [vehicle?.name || "", vehicle?.type || ""].filter(Boolean).join(" ");
     }).join(" ");
     const text = `${vehicleText} ${segment.guidance || ""} ${(segment.stops || []).join(" ")}`;
-    return /심야|(?:^|\\s)N\\s?\\d{1,4}(?:\\s|$)/i.test(text);
+    return /심야|(?:^|\s)N\s?\d{1,4}(?:\s|$)/i.test(text);
   };
 
   const getLastDepartureDeadline = (route, lastTrain) => {
@@ -123,7 +123,6 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
     const minutes = String(deadline % 60).padStart(2, "0");
     return {
       time: `${hours}:${minutes}`,
-      baseTime: String(departure || "").replace(/^(\\d{2})(\\d{2})(\\d{2})$/, "$1:$2:$3").slice(0, 5),
       ignoredNightBus: nightBusIndex >= 0,
     };
   };
