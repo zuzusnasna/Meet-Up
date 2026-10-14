@@ -272,7 +272,7 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
               {!location ? <p>출발지를 등록하면 귀가 경로를 조회할 수 있습니다.</p> : (
                 <>
                   {result?.message && <p className="last-train-route-message">{result.message}</p>}
-                  {routes.length === 0 ? <div className="last-train-empty">대중교통 경로를 찾지 못했습니다.</div> : routes.map((route, routeIndex) => (
+                  {routes.length === 0 ? <div className="last-train-empty">{result?.message || "대중교통 경로를 찾지 못했습니다."}</div> : routes.map((route, routeIndex) => (
                     <div className="last-train-route-option" key={routeIndex}>
                       <div className="last-train-route-summary"><strong>{routeIndex + 1}번 경로</strong><span>{formatDuration(route.totalTimeSeconds)} · 환승 {route.transferCount ?? 0}회</span></div>
                       {(() => {
