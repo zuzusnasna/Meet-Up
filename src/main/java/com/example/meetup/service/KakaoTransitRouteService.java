@@ -37,7 +37,12 @@ public class KakaoTransitRouteService {
             double meetingLatitude, double meetingLongitude,
             double originLatitude, double originLongitude) {
 
-        String cacheKey = routeCacheKey(meetingLatitude, meetingLongitude, originLatitude, originLongitude);
+        String cacheKey = redisCacheService.versionedKey(
+                "transit:route",
+                coordinate(meetingLatitude),
+                coordinate(meetingLongitude),
+                coordinate(originLatitude),
+                coordinate(originLongitude));
         Map<String, Object> cached = redisCacheService.get(cacheKey, MAP_TYPE);
         if (cached != null) return cached;
 
@@ -71,7 +76,6 @@ public class KakaoTransitRouteService {
             try {
                 route.put("lastTrain", lastTrainService.findLastTrainForRoute(segments));
             } catch (Exception e) {
-                // 막차 조회 실패가 환승 경로 자체를 막지 않도록 독립적으로 처리한다.
                 Map<String, Object> lastTrainError = new LinkedHashMap<>();
                 lastTrainError.put("status", "ERROR");
                 lastTrainError.put("message", "이 경로의 막차 정보를 조회하지 못했습니다.");
@@ -172,11 +176,6 @@ public class KakaoTransitRouteService {
         point.put("latitude", latitude);
         point.put("longitude", longitude);
         return point;
-    }
-
-    private String routeCacheKey(double meetingLatitude, double meetingLongitude, double originLatitude, double originLongitude) {
-        return "transit:route:" + coordinate(meetingLatitude) + ":" + coordinate(meetingLongitude)
-                + ":" + coordinate(originLatitude) + ":" + coordinate(originLongitude);
     }
 
     private String coordinate(double value) {
