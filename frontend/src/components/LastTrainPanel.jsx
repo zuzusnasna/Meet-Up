@@ -67,9 +67,9 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
   };
 
   const modeLabel = (type) => {
-    if (type === "SUBWAY") return "🚇 지하철";
-    if (type === "BUS") return "🚌 버스";
-    if (type === "WALKING") return "🚶 도보";
+    if (type === "SUBWAY") return "지하철";
+    if (type === "BUS") return "버스";
+    if (type === "WALKING") return "도보";
     return type || "이동";
   };
 
@@ -88,6 +88,22 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
     })
     .filter(Boolean)
     .join(", ");
+
+  const getSegmentVehicle = (segment) => formatVehicles(segment.vehicles || []);
+
+  const getSubwayLineClass = (segment) => {
+    const text = `${getSegmentVehicle(segment)} ${segment.guidance || ""} ${(segment.stops || []).join(" ")}`;
+    const lineMatch = text.match(/([1-9]|[1-9]0)호선/);
+    if (!lineMatch) return "last-train-line-default";
+    return `last-train-line-${lineMatch[1]}`;
+  };
+
+  const getSegmentClass = (segment) => {
+    if (segment.type === "WALKING") return "last-train-segment-walking";
+    if (segment.type === "BUS") return "last-train-segment-bus";
+    if (segment.type === "SUBWAY") return `last-train-segment-subway ${getSubwayLineClass(segment)}`;
+    return "last-train-segment-etc";
+  };
 
   return (
     <section className="last-train-page">
@@ -121,28 +137,57 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
                         <strong>{route.type === "BUS" ? "🚌 버스" : route.type === "SUBWAY" ? "🚇 지하철" : "🚌🚇 버스·지하철 환승"}</strong>
                         <span>{formatDuration(route.totalTimeSeconds)} · 환승 {route.transferCount ?? 0}회</span>
                       </div>
-                      <div className="last-train-segments">
+
+                      <div className="last-train-route-line" aria-label="귀가 경로">
+                        <div className="last-train-route-endpoint">
+                          <span className="last-train-route-dot last-train-route-dot-start" />
+                          <strong>{finalPlace?.placeName || "약속장소"}</strong>
+                        </div>
+
+                        <div className="last-train-route-track">
+                          {(route.segments || []).map((segment, segmentIndex) => {
+                            const train = segment.lastTrain;
+                            const departure = train?.lastDeparture;
+                            const vehicle = getSegmentVehicle(segment);
+                            return <div className={`last-train-visual-segment ${getSegmentClass(segment)}`} key={segmentIndex}>
+                              <div className="last-train-visual-line" />
+                              <div className="last-train-visual-content">
+                                <div className="last-train-visual-label">
+                                  <span>{modeLabel(segment.type)}</span>
+                                  <strong>{formatDuration(segment.timeSeconds)}</strong>
+                                </div>
+                                {vehicle && <div className="last-train-visual-vehicle">{vehicle}</div>}
+                                {segment.stops?.length > 0 && <div className="last-train-visual-stops">
+                                  {segment.stops.slice(0, 5).map((stop, stopIndex) => <span key={`${stop}-${stopIndex}`}>{stop}</span>)}
+                                  {segment.stops.length > 5 && <span>외 {segment.stops.length - 5}개</span>}
+                                </div>}
+                              </div>
+                              <div className="last-train-visual-node" />
+                              {segment.type === "SUBWAY" && train?.message && <small className="last-train-visual-note">{train.status === "OK" && departure ? `막차 ${formatTime(departure.departureTime)}` : train.message}</small>}
+                            </div>;
+                          })}
+                        </div>
+
+                        <div className="last-train-route-endpoint">
+                          <span className="last-train-route-dot last-train-route-dot-end" />
+                          <strong>{location?.address || "출발지"}</strong>
+                        </div>
+                      </div>
+
+                      <div className="last-train-segment-details">
                         {(route.segments || []).map((segment, segmentIndex) => {
                           const train = segment.lastTrain;
                           const departure = train?.lastDeparture;
-                          return <div className="last-train-segment" key={segmentIndex}>
+                          return <div className="last-train-segment-detail" key={segmentIndex}>
                             <div className="last-train-segment-heading">
                               <strong>{modeLabel(segment.type)}</strong>
                               <span>{formatDuration(segment.timeSeconds)}</span>
                             </div>
-                            {segment.vehicles?.length > 0 && <p className="last-train-segment-route">{formatVehicles(segment.vehicles)}</p>}
                             {segment.guidance && <p>{segment.guidance}</p>}
-                            {segment.stops?.length > 0 && <p className="last-train-segment-stops">{segment.stops.join(" → ")}</p>}
                             {segment.type === "SUBWAY" && (
-                              <p className="last-train-segment-last">
-                                지하철 막차: <strong>{train?.status === "OK" && departure ? formatTime(departure.departureTime) : "확인 불가"}</strong>
-                                {departure?.routeName && <span> · {departure.routeName}</span>}
-                                {train?.message && <small>{train.message}</small>}
-                              </p>
+                              <p className="last-train-segment-last">지하철 막차: <strong>{train?.status === "OK" && departure ? formatTime(departure.departureTime) : "확인 불가"}</strong>{departure?.routeName && <span> · {departure.routeName}</span>}</p>
                             )}
-                            {segment.type === "BUS" && (
-                              <p className="last-train-segment-last">버스 막차: <strong>확인 불가</strong><small>{segment.lastBus?.message || "운행시간표 데이터가 연결되지 않았습니다."}</small></p>
-                            )}
+                            {segment.type === "BUS" && <p className="last-train-segment-last">버스 막차: <strong>확인 불가</strong><small>{segment.lastBus?.message || "운행시간표 데이터가 연결되지 않았습니다."}</small></p>}
                           </div>;
                         })}
                       </div>
