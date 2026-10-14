@@ -218,7 +218,13 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
                           {lastTrain && <div className="transit-routes-last-train">이 경로 막차 <strong>{lastTrain}</strong></div>}
 
                           <div className="transit-routes-horizontal">
-                            <div className="transit-routes-endpoint"><span className="transit-routes-dot" /><strong>{finalPlace?.placeName || "약속장소"}</strong></div>
+                            <div className="transit-routes-endpoint">
+                              <span className="transit-routes-dot transit-routes-endpoint-marker" aria-hidden="true" />
+                              <div>
+                                <span className="transit-routes-endpoint-label">최종 목적지</span>
+                                <strong>{finalPlace?.placeName || "약속장소"}</strong>
+                              </div>
+                            </div>
                             <div className="transit-routes-track">
                               {(route.segments || []).map((segment, segmentIndex, allSegments) => {
                                 const busInfo = getBusInfo(segment);
@@ -238,7 +244,13 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
                                 );
                               })}
                             </div>
-                            <div className="transit-routes-endpoint"><span className="transit-routes-dot" /><strong>{location?.address || "출발지"}</strong></div>
+                            <div className="transit-routes-endpoint">
+                              <span className="transit-routes-dot transit-routes-endpoint-marker" aria-hidden="true" />
+                              <div>
+                                <span className="transit-routes-endpoint-label">사용자 출발지</span>
+                                <strong>{location?.address || "출발지"}</strong>
+                              </div>
+                            </div>
                           </div>
 
                           <div className="transit-routes-meta">
