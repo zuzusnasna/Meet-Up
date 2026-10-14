@@ -36,15 +36,26 @@ public class KakaoTransitRouteService {
     public Map<String, Object> findReturnRoutes(
             double meetingLatitude, double meetingLongitude,
             double originLatitude, double originLongitude) {
+        return findReturnRoutes(meetingLatitude, meetingLongitude, originLatitude, originLongitude, false);
+    }
+
+    public Map<String, Object> findReturnRoutes(
+            double meetingLatitude, double meetingLongitude,
+            double originLatitude, double originLongitude,
+            boolean refresh) {
 
         String cacheKey = redisCacheService.versionedKey(
                 "transit:route",
-                coordinate(meetingLatitude),
-                coordinate(meetingLongitude),
-                coordinate(originLatitude),
-                coordinate(originLongitude));
-        Map<String, Object> cached = redisCacheService.get(cacheKey, MAP_TYPE);
-        if (hasUsableRoutes(cached)) return cached;
+                coordinate(meetingLatitude), coordinate(meetingLongitude),
+                coordinate(originLatitude), coordinate(originLongitude));
+
+        if (!refresh) {
+            Map<String, Object> cached = redisCacheService.get(cacheKey, MAP_TYPE);
+            if (hasUsableRoutes(cached)) return cached;
+        } else {
+            // 사용자가 새로고침을 눌렀을 때는 최신 카카오 경로를 다시 조회한다.
+            redisCacheService.delete(cacheKey);
+        }
 
         JsonNode root = requestRoutes(meetingLongitude, meetingLatitude, originLongitude, originLatitude);
         Map<String, Object> result = new LinkedHashMap<>();
@@ -88,8 +99,6 @@ public class KakaoTransitRouteService {
         result.put("routes", routeList);
         result.put("message", "약속장소에서 출발지까지의 대중교통 경로를 조회했습니다.");
 
-        // 빈 결과는 영구 캐시하지 않는다. 이후 같은 목적지/출발지로 다시 조회하면
-        // 카카오 API에서 새 경로를 받을 수 있도록 한다.
         if (!routeList.isEmpty()) {
             redisCacheService.put(cacheKey, result, ROUTE_CACHE_TTL);
         } else {
