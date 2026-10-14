@@ -134,13 +134,22 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
   };
 
   const isNightBus = (segment) => {
-    if (segment?.type !== "BUS") return false;
-    const vehicleText = (segment.vehicles || []).map((vehicle) => {
-      if (typeof vehicle === "string") return vehicle;
-      return [vehicle?.name || "", vehicle?.type || ""].filter(Boolean).join(" ");
-    }).join(" ");
-    const text = `${vehicleText} ${segment.guidance || ""} ${(segment.stops || []).join(" ")}`;
-    return /심야|(?:^|\s)N\s?\d{1,4}(?:\s|$)/i.test(text);
+    if (String(segment?.type || "").toUpperCase() !== "BUS") return false;
+
+    // 정류장명이나 일반 안내 문구가 아니라 API가 반환한 버스 노선 정보만 판별에 사용한다.
+    // 노선명에 "심야"가 명시되거나, 노선 번호가 N26 / N 26 형태인 경우 심야 노선으로 본다.
+    const vehicles = Array.isArray(segment.vehicles) ? segment.vehicles : [];
+    return vehicles.some((vehicle) => {
+      const name = typeof vehicle === "string"
+        ? vehicle.trim()
+        : String(vehicle?.name || "").trim();
+      const type = typeof vehicle === "string"
+        ? ""
+        : String(vehicle?.type || "").trim();
+      const routeLabel = (name + " " + type).trim();
+      return /심야/i.test(routeLabel)
+        || /(?:^|\s)N\s?\d{1,4}(?:$|\s)/i.test(name);
+    });
   };
 
   const getLastDepartureDeadline = (route, lastTrain) => {
