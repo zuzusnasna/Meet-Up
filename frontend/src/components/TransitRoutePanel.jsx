@@ -80,7 +80,12 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
 
   const formatDuration = (seconds) => {
     const minutes = Math.round(Number(seconds || 0) / 60);
-    return minutes > 0 ? minutes + "분" : "시간 정보 없음";
+    if (minutes <= 0) return "시간 정보 없음";
+    if (minutes < 60) return `${minutes}분`;
+
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return remainingMinutes > 0 ? `${hours}시간 ${remainingMinutes}분` : `${hours}시간`;
   };
 
   const formatLastTrain = (route) => {
@@ -237,7 +242,7 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
                           </div>
 
                           <div className="transit-routes-meta">
-                            총 {formatDuration(route.totalTimeSeconds)} · {Math.round(Number(route.totalDistanceMeters || 0))}m
+                            총 {formatDuration(route.totalTimeSeconds)}
                             {url && <> · <a href={url} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>카카오맵에서 보기 ↗</a></>}
                           </div>
                         </div>
