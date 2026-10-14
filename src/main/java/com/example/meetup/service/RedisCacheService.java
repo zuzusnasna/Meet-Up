@@ -6,8 +6,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
-
 @Service
 @RequiredArgsConstructor
 public class RedisCacheService {
@@ -36,9 +34,16 @@ public class RedisCacheService {
         }
     }
 
-    public void put(String key, Object value, Duration ttl) {
+    /**
+     * 한 번 조회한 데이터는 TTL 없이 Redis에 유지한다.
+     * 현재 프로젝트에서는 방이 존재하는 동안 같은 조회를 반복하지 않도록
+     * 캐시 만료보다 명시적인 삭제를 우선한다.
+     *
+     * ttl 인자는 기존 호출부 호환을 위해 유지하지만 더 이상 만료시간에 사용하지 않는다.
+     */
+    public void put(String key, Object value, java.time.Duration ignoredTtl) {
         try {
-            redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(value), ttl);
+            redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(value));
         } catch (Exception ignored) {
             // Redis가 일시적으로 unavailable이어도 원본 API 조회는 계속 수행한다.
         }
