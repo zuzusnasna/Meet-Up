@@ -135,13 +135,13 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
   };
 
   const getSegmentClass = (segment) => {
-    if (segment.type === "WALKING") return "transit-route-segment-walking";
+    if (["WALKING", "WALK", "FOOT"].includes(String(segment.type).toUpperCase())) return "transit-route-segment-walking";
     if (segment.type === "BUS") return "transit-route-segment-bus";
     if (segment.type === "SUBWAY") return `transit-route-segment-subway ${getSubwayLineClass(segment)}`;
     return "transit-route-segment-other";
   };
 
-  const modeLabel = (type) => type === "SUBWAY" ? "지하철" : type === "BUS" ? "버스" : type === "WALKING" ? "도보" : type || "이동";
+  const modeLabel = (type) => ["WALKING", "WALK", "FOOT"].includes(String(type || "").toUpperCase()) ? "도보" : type === "SUBWAY" ? "지하철" : type === "BUS" ? "버스" : type || "이동";
 
   return (
     <section className="transit-routes-page" onClick={() => { setPinnedSegment(null); setHoveredSegment(null); }}>
@@ -234,6 +234,9 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
                                   <div className={`transit-routes-segment ${getSegmentClass(segment)}${isPinned ? " is-pinned" : ""}${isBusTransfer ? " is-bus-transfer" : ""}`} key={segmentIndex} tabIndex="0" onMouseEnter={() => setHoveredSegment(segmentKey)} onMouseLeave={() => setHoveredSegment(null)} onClick={(event) => { event.stopPropagation(); setPinnedSegment(isPinned ? null : segmentKey); }}>
                                     <div className="transit-routes-line" />
                                     <div className="transit-routes-label"><span>{modeLabel(segment.type)}</span><strong>{formatDuration(segment.timeSeconds)}</strong></div>
+                                    {["WALKING", "WALK", "FOOT"].includes(String(segment.type).toUpperCase()) && segment.guidance && (
+                                      <div className="transit-routes-walking-guidance">{segment.guidance}</div>
+                                    )}
                                     {segment.type === "SUBWAY" && (
                                       <div className="transit-routes-segment-last-train">
                                         {formatLastTrain(segment.lastTrain)
