@@ -49,10 +49,15 @@ public class RedisCacheService {
         return namespace + ":" + CACHE_VERSION + ":" + sha256(source.toString());
     }
 
-    public void put(String key, Object value, Duration ignoredTtl) {
+    public void put(String key, Object value, Duration ttl) {
         try {
             if (value == null) return;
-            redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(value));
+            String serialized = objectMapper.writeValueAsString(value);
+            if (ttl == null || ttl.isZero() || ttl.isNegative()) {
+                redisTemplate.opsForValue().set(key, serialized);
+            } else {
+                redisTemplate.opsForValue().set(key, serialized, ttl);
+            }
         } catch (Exception ignored) {
         }
     }
