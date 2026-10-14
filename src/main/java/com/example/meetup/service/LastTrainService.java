@@ -109,6 +109,7 @@ public class LastTrainService {
 
                     Map<String, Object> candidate = new LinkedHashMap<>(schedule);
                     candidate.put("departureTime", time);
+                    candidate.put("displayTime", displayTime(time));
                     candidate.put("stationName", stationName);
                     candidate.put("routeName", scheduleRoute.isBlank() ? routeName : scheduleRoute);
                     candidate.put("direction", firstText(schedule, "upDownTypeCode", "upDownTypeName"));
@@ -245,7 +246,20 @@ public class LastTrainService {
 
     private int timeToMinutes(String value) {
         if (!isValidTime(value)) return -1;
-        return Integer.parseInt(value.substring(0, 2)) * 60 + Integer.parseInt(value.substring(2, 4));
+        int hour = Integer.parseInt(value.substring(0, 2));
+        int minute = Integer.parseInt(value.substring(2, 4));
+        // 서울 지하철 시간표에서 00:00~03:59는 당일 밤 운행의 익일 막차로 취급한다.
+        // API가 24:xx로 반환하든 00:xx로 반환하든 비교 기준을 통일한다.
+        if (hour < 4) hour += 24;
+        return hour * 60 + minute;
+    }
+
+    private String displayTime(String value) {
+        int hour = Integer.parseInt(value.substring(0, 2));
+        String minute = value.substring(2, 4);
+        if (hour >= 24) return String.format("익일 %02d:%s", hour - 24, minute);
+        if (hour < 4) return String.format("익일 %02d:%s", hour, minute);
+        return String.format("%02d:%s", hour, minute);
     }
 
     private String normalize(String value) {
