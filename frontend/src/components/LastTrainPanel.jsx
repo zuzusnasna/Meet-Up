@@ -39,29 +39,31 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
             try {
               const routeSegments = Array.isArray(route.segments) ? route.segments : [];
               const subwaySegments = routeSegments.filter((segment) =>
-                String(segment?.type || "").toUpperCase() === "SUBWAY");
-              const hasVerifiableSubway = subwaySegments.some((segment) =>
+                String(segment?.type || "").trim().toUpperCase() === "SUBWAY");
+              const hasSubway = subwaySegments.length > 0;
+              const allSubwaySegmentsVerifiable = hasSubway && subwaySegments.every((segment) =>
                 Array.isArray(segment.stops)
                 && segment.stops.length >= 2
                 && String(segment.stops[0] || "").trim()
                 && String(segment.stops[segment.stops.length - 1] || "").trim());
 
-              if (subwaySegments.length === 0) {
+              // 버스/도보만 이용하는 경로는 오류가 아니라 지하철 막차 검증 대상이 아니다.
+              if (!hasSubway) {
                 return {
                   ...route,
                   lastTrain: {
-                    status: "NO_SUBWAY_SEGMENT",
-                    message: "이 경로에는 시간표를 검증할 지하철 구간이 없어 막차를 확인할 수 없습니다.",
+                    status: "NOT_APPLICABLE",
+                    message: "이 경로는 지하철을 이용하지 않아 지하철 막차 검증 대상이 아닙니다. 버스 막차는 별도 시간표 확인이 필요합니다.",
                     lastDeparture: null,
                   },
                 };
               }
-              if (!hasVerifiableSubway) {
+              if (!allSubwaySegmentsVerifiable) {
                 return {
                   ...route,
                   lastTrain: {
                     status: "INVALID_SUBWAY_SEGMENT",
-                    message: "지하철 구간은 있지만 역 정보가 부족해 시간표를 검증할 수 없습니다.",
+                    message: "지하철 구간의 역 정보가 부족해 정확한 막차를 검증할 수 없습니다.",
                     lastDeparture: null,
                   },
                 };
@@ -81,8 +83,25 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
                 }))),
               });
               const scheduleResponse = await fetch("/api/transit/last-train/route?" + scheduleParams.toString());
-              const lastTrain = await scheduleResponse.json();
-              return { ...route, lastTrain: scheduleResponse.ok ? lastTrain : null };
+              let lastTrain;
+              try {
+                lastTrain = await scheduleResponse.json();
+              } catch {
+                lastTrain = {
+                  status: "INVALID_RESPONSE",
+                  message: "막차 시간표 서버가 올바른 응답을 반환하지 않았습니다.",
+                  lastDeparture: null,
+                };
+              }
+              if (!scheduleResponse.ok && !lastTrain?.message) {
+                lastTrain = {
+                  ...lastTrain,
+                  status: lastTrain?.status || "HTTP_ERROR",
+                  message: "막차 시간표 조회에 실패했습니다. 잠시 후 다시 확인해 주세요.",
+                  lastDeparture: null,
+                };
+              }
+              return { ...route, lastTrain };
             } catch (scheduleError) {
               console.warn("귀가 경로별 막차 시간표 조회에 실패했습니다.", scheduleError);
               return { ...route, lastTrain: null };
@@ -262,8 +281,11 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
                           return <div className="last-train-deadline"><strong>막차 출발 마감 추정 {deadline.time}</strong><span>{deadline.ignoredNightBus ? "심야버스 제외 · " : ""}환승 여유 10분 포함</span></div>;
                         }
                         const schedule = route.lastTrain;
+                        if (schedule?.status === "NOT_APPLICABLE") {
+                          return <div className="last-train-deadline last-train-deadline-unavailable"><strong>지하철 막차 확인 대상 아님</strong><span>{schedule.message}</span></div>;
+                        }
                         const message = schedule?.message
-                          || (schedule ? "막차 시간표에서 해당 방향의 직통 운행을 찾지 못했습니다." : "막차 시간표 API 응답을 받지 못했습니다.");
+                          || (schedule ? "막차 시간표에서 해당 구간을 확인하지 못했습니다." : "막차 시간표 API 응답을 받지 못했습니다.");
                         return <div className="last-train-deadline last-train-deadline-unavailable"><strong>막차 시간 확인 불가</strong><span>{message}</span></div>;
                       })()}
                       <div className="last-train-horizontal-route">
