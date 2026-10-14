@@ -101,6 +101,46 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
     return text.replace(/([^\\s]{2,})\\1+/g, "$1").replace(/\\s+/g, " ").trim();
   };
 
+  const haversineMeters = (lat1, lon1, lat2, lon2) => {
+    const radians = (degrees) => degrees * Math.PI / 180;
+    const dLat = radians(lat2 - lat1);
+    const dLon = radians(lon2 - lon1);
+    const a = Math.sin(dLat / 2) ** 2
+      + Math.cos(radians(lat1)) * Math.cos(radians(lat2)) * Math.sin(dLon / 2) ** 2;
+    return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
+
+  const getDisplaySegments = (route) => {
+    const segments = Array.isArray(route.segments) ? [...route.segments] : [];
+    const firstTransitIndex = segments.findIndex((segment) => ["SUBWAY", "BUS"].includes(String(segment.type).toUpperCase()));
+    if (firstTransitIndex < 0 || segments.slice(0, firstTransitIndex).some((segment) =>
+      ["WALKING", "WALK", "FOOT"].includes(String(segment.type).toUpperCase()))) return segments;
+
+    const firstTransit = segments[firstTransitIndex];
+    const firstCoordinate = firstTransit.path?.[0];
+    if (!Array.isArray(firstCoordinate) || firstCoordinate.length < 2
+      || finalPlace?.latitude == null || finalPlace?.longitude == null) return segments;
+
+    // Kakao public-transit responses can omit the access walk before the first boarding segment.
+    // Estimate the missing access walk from the meeting-place coordinate to the first route point.
+    const distance = haversineMeters(
+      Number(finalPlace.latitude), Number(finalPlace.longitude),
+      Number(firstCoordinate[1]), Number(firstCoordinate[0]),
+    );
+    if (!Number.isFinite(distance) || distance < 100) return segments;
+
+    const firstStop = firstTransit.stops?.[0] || firstTransit.guidance || "첫 승차 지점";
+    const walkingMinutes = Math.max(1, Math.round((distance * 1.25) / 75));
+    segments.splice(firstTransitIndex, 0, {
+      type: "WALKING",
+      timeSeconds: walkingMinutes * 60,
+      guidance: `${finalPlace.placeName || "약속장소"}에서 ${firstStop}까지 도보 이동 (거리 기반 예상)`,
+      stops: [],
+      estimated: true,
+    });
+    return segments;
+  };
+
   const formatVehicles = (vehicles = []) => vehicles
     .map((vehicle) => {
       if (vehicle == null) return "";
@@ -230,7 +270,7 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
                               </div>
                             </div>
                             <div className="transit-routes-track">
-                              {(route.segments || []).map((segment, segmentIndex, allSegments) => {
+                              {getDisplaySegments(route).map((segment, segmentIndex, allSegments) => {
                                 const busInfo = getBusInfo(segment);
                                 const previousSegment = allSegments[segmentIndex - 1];
                                 const isBusTransfer = segment.type === "BUS" && previousSegment?.type === "BUS";
