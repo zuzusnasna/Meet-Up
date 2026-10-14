@@ -81,22 +81,6 @@ public class TransitService {
 
         boolean directRouteFound = !matchingSchedules.isEmpty();
 
-        // 직통 운행을 찾지 못하더라도 막차 시각이 아예 사라지지 않도록,
-        // 약속장소 주변 역의 마지막 출발 시간표를 참고값으로 사용한다.
-        // 이 값은 참여자 출발지까지 연결되는 막차를 보장하지 않는다.
-        if (matchingSchedules.isEmpty()) {
-            for (TagoStation origin : originStations) {
-                for (String direction : List.of("U", "D")) {
-                    JsonNode schedules = fetchSchedules(origin.id(), normalizedDayType, direction);
-                    for (JsonNode schedule : schedules) {
-                        if (!scheduleTime(schedule).equals("000000")) {
-                            matchingSchedules.add(new ScheduleMatch(schedule, origin, origin));
-                        }
-                    }
-                }
-            }
-        }
-
         if (matchingSchedules.isEmpty()) {
             return failure(result, "SCHEDULE_NOT_FOUND",
                     "약속장소 주변 역의 출발 시간표를 찾지 못했습니다. TAGO 응답과 인증키를 확인하세요.");
