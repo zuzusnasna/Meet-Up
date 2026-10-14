@@ -94,6 +94,13 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
     return `${String(value).slice(0, 2)}:${String(value).slice(2, 4)}`;
   };
 
+  const normalizeGuidance = (value) => {
+    const text = String(value || "").replace(/\\s+/g, " ").trim();
+    if (!text) return "";
+    // Some route responses repeat the same stop name consecutively.
+    return text.replace(/([^\\s]{2,})\\1+/g, "$1").replace(/\\s+/g, " ").trim();
+  };
+
   const formatVehicles = (vehicles = []) => vehicles
     .map((vehicle) => {
       if (vehicle == null) return "";
@@ -246,7 +253,7 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
                                     )}
                                     {busInfo.length > 0 && <div className="transit-routes-bus-numbers" aria-label="이용 가능한 버스 번호">{busInfo.map((bus, index) => <span className={`transit-routes-bus-${bus.kind}`} key={`${bus.number}-${index}`}>{bus.number}</span>)}</div>}
                                     {isBusTransfer && <span className="transit-routes-transfer-badge">버스 환승</span>}
-                                    {isActive && <div className="transit-routes-tooltip"><strong>{modeLabel(segment.type)} · {formatDuration(segment.timeSeconds)}</strong>{segment.guidance && <p>{segment.guidance}</p>}{segment.stops?.length > 0 && <div className="transit-routes-stops">{segment.stops.map((stop, index) => <span key={`${stop}-${index}`}>{stop}</span>)}</div>}</div>}
+                                    {isActive && <div className="transit-routes-tooltip"><strong>{modeLabel(segment.type)} · {formatDuration(segment.timeSeconds)}</strong>{segment.guidance && <p>{normalizeGuidance(segment.guidance)}</p>}{segment.stops?.length > 0 && <div className="transit-routes-stops">{segment.stops.map((stop, index) => <span key={`${stop}-${index}`}>{stop}</span>)}</div>}</div>}
                                   </div>
                                 );
                               })}
