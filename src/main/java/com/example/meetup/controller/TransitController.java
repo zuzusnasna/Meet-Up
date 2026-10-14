@@ -1,12 +1,16 @@
 package com.example.meetup.controller;
 
+import com.example.meetup.dto.TransitBatchRequest;
 import com.example.meetup.service.BusTransitService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestController
@@ -26,6 +30,21 @@ public class TransitController {
     ) {
         return kakaoTransitRouteService.findReturnRoutes(
                 meetingLatitude, meetingLongitude, originLatitude, originLongitude);
+    }
+
+    @PostMapping("/return-routes/batch")
+    public Map<String, Object> findReturnRoutesBatch(@RequestBody TransitBatchRequest request) {
+        Map<String, Object> results = new LinkedHashMap<>();
+        if (request.origins() == null) return results;
+
+        for (TransitBatchRequest.Origin origin : request.origins()) {
+            if (origin == null || origin.userId() == null) continue;
+            results.put(String.valueOf(origin.userId()),
+                    kakaoTransitRouteService.findReturnRoutes(
+                            request.meetingLatitude(), request.meetingLongitude(),
+                            origin.latitude(), origin.longitude()));
+        }
+        return results;
     }
 
     @GetMapping("/bus-arrivals")
