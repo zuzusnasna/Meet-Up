@@ -30,15 +30,14 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
           const data = await response.json();
           if (!response.ok) throw new Error(data.message || "귀가 경로 조회에 실패했습니다.");
 
-          // 막차 시간표는 약속장소 주변 역을 기준으로 별도 조회한다.
-          // 경로 API 자체에는 구간별 막차 시각이 없어 1차 버전에서는 참고 시간표로 사용한다.
+          // 막차 시간표는 약속장소에서 참여자 출발지로 돌아가는 방향으로 조회한다.
           let lastTrain = null;
           try {
             const scheduleParams = new URLSearchParams({
-              originLatitude: String(location.latitude),
-              originLongitude: String(location.longitude),
-              destinationLatitude: String(finalPlace.latitude),
-              destinationLongitude: String(finalPlace.longitude),
+              originLatitude: String(finalPlace.latitude),
+              originLongitude: String(finalPlace.longitude),
+              destinationLatitude: String(location.latitude),
+              destinationLongitude: String(location.longitude),
             });
             const scheduleResponse = await fetch("/api/transit/last-train?" + scheduleParams.toString());
             lastTrain = await scheduleResponse.json();
@@ -94,7 +93,7 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
       return [vehicle?.name || "", vehicle?.type || ""].filter(Boolean).join(" ");
     }).join(" ");
     const text = `${vehicleText} ${segment.guidance || ""} ${(segment.stops || []).join(" ")}`;
-    return /심야|(?:^|\s)N\s?\d{1,4}(?:\s|$)/i.test(text);
+    return /심야|(?:^|\\s)N\\s?\\d{1,4}(?:\\s|$)/i.test(text);
   };
 
   const getLastDepartureDeadline = (route, lastTrain) => {
@@ -149,7 +148,7 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
         if (vehicle == null) return null;
         const text = typeof vehicle === "string" ? vehicle : [vehicle.type || "", vehicle.name || ""].filter(Boolean).join(" ");
         const number = typeof vehicle === "string" ? vehicle : vehicle.name || vehicle.type || "";
-        const normalized = text.replace(/\s+/g, " ").trim();
+        const normalized = text.replace(/\\s+/g, " ").trim();
         let kind = "normal";
         if (/마을/.test(normalized)) kind = "village";
         else if (/시외/.test(normalized)) kind = "intercity";
