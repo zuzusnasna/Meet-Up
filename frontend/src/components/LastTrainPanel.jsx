@@ -74,6 +74,19 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
     return match ? `last-train-line-${match[1]}` : "last-train-line-default";
   };
 
+  const getBusNumbers = (segment) => {
+    if (segment.type !== "BUS") return [];
+    const values = (segment.vehicles || [])
+      .map((vehicle) => {
+        if (vehicle == null) return "";
+        if (typeof vehicle === "string") return vehicle;
+        return vehicle.name || vehicle.type || "";
+      })
+      .map((value) => String(value).trim())
+      .filter(Boolean);
+    return [...new Set(values)];
+  };
+
   const getSegmentClass = (segment) => {
     if (segment.type === "WALKING") return "last-train-segment-walking";
     if (segment.type === "BUS") return "last-train-segment-bus";
@@ -109,17 +122,19 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
                       <div className="last-train-horizontal-route">
                         <div className="last-train-route-endpoint"><span className="last-train-route-dot" /><strong>{finalPlace?.placeName || "약속장소"}</strong></div>
                         <div className="last-train-horizontal-track">
-                          {(route.segments || []).map((segment, segmentIndex) => (
-                            <div className={`last-train-horizontal-segment ${getSegmentClass(segment)}`} key={segmentIndex} tabIndex="0">
+                          {(route.segments || []).map((segment, segmentIndex) => {
+                            const busNumbers = getBusNumbers(segment);
+                            return <div className={`last-train-horizontal-segment ${getSegmentClass(segment)}`} key={segmentIndex} tabIndex="0">
                               <div className="last-train-horizontal-line" />
                               <div className="last-train-horizontal-label"><span>{modeLabel(segment.type)}</span><strong>{formatDuration(segment.timeSeconds)}</strong></div>
+                              {busNumbers.length > 0 && <div className="last-train-bus-numbers" aria-label="이용 가능한 버스 번호">{busNumbers.map((number, numberIndex) => <span key={`${number}-${numberIndex}`}>{number}</span>)}</div>}
                               <div className="last-train-horizontal-tooltip">
                                 <strong>{modeLabel(segment.type)} · {formatDuration(segment.timeSeconds)}</strong>
                                 {segment.guidance && <p>{segment.guidance}</p>}
                                 {segment.stops?.length > 0 && <div className="last-train-horizontal-stops">{segment.stops.map((stop, stopIndex) => <span key={`${stop}-${stopIndex}`}>{stop}</span>)}</div>}
                               </div>
-                            </div>
-                          ))}
+                            </div>;
+                          })}
                         </div>
                         <div className="last-train-route-endpoint"><span className="last-train-route-dot" /><strong>{location?.address || "출발지"}</strong></div>
                       </div>
