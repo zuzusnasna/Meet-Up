@@ -30,22 +30,25 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
           const data = await response.json();
           if (!response.ok) throw new Error(data.message || "귀가 경로 조회에 실패했습니다.");
 
-          // 막차 시간표는 약속장소에서 참여자 출발지로 돌아가는 방향으로 조회한다.
-          let lastTrain = null;
-          try {
-            const scheduleParams = new URLSearchParams({
-              originLatitude: String(finalPlace.latitude),
-              originLongitude: String(finalPlace.longitude),
-              destinationLatitude: String(location.latitude),
-              destinationLongitude: String(location.longitude),
-            });
-            const scheduleResponse = await fetch("/api/transit/last-train?" + scheduleParams.toString());
-            lastTrain = await scheduleResponse.json();
-            if (!scheduleResponse.ok) lastTrain = null;
-          } catch (scheduleError) {
-            console.warn("막차 시간표 조회에 실패했습니다.", scheduleError);
-          }
-          return [userId, { ...data, lastTrain }];
+          // 각 카카오 귀가 경로별 지하철 구간을 보내 시간표와 환승 연결을 따로 검증한다.
+          const routesWithSchedules = await Promise.all((Array.isArray(data.routes) ? data.routes : []).map(async (route) => {
+            try {
+              const scheduleParams = new URLSearchParams({
+                originLatitude: String(finalPlace.latitude),
+                originLongitude: String(finalPlace.longitude),
+                destinationLatitude: String(location.latitude),
+                destinationLongitude: String(location.longitude),
+                routeSegments: JSON.stringify(route.segments || []),
+              });
+              const scheduleResponse = await fetch("/api/transit/last-train/route?" + scheduleParams.toString());
+              const lastTrain = await scheduleResponse.json();
+              return { ...route, lastTrain: scheduleResponse.ok ? lastTrain : null };
+            } catch (scheduleError) {
+              console.warn("귀가 경로별 막차 시간표 조회에 실패했습니다.", scheduleError);
+              return { ...route, lastTrain: null };
+            }
+          }));
+          return [userId, { ...data, routes: routesWithSchedules }];
         } catch (error) {
           console.error(error);
           return [userId, { status: "ERROR", message: error.message || "귀가 경로를 불러오지 못했습니다.", routes: [] }];
@@ -196,11 +199,11 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
                     <div className="last-train-route-option" key={routeIndex}>
                       <div className="last-train-route-summary"><strong>{routeIndex + 1}번 경로</strong><span>{formatDuration(route.totalTimeSeconds)} · 환승 {route.transferCount ?? 0}회</span></div>
                       {(() => {
-                        const deadline = getLastDepartureDeadline(route, result?.lastTrain);
+                        const deadline = getLastDepartureDeadline(route, route.lastTrain);
                         if (deadline) {
                           return <div className="last-train-deadline"><strong>막차 출발 마감 추정 {deadline.time}</strong><span>{deadline.ignoredNightBus ? "심야버스 제외 · " : ""}환승 여유 10분 포함</span></div>;
                         }
-                        const schedule = result?.lastTrain;
+                        const schedule = route.lastTrain;
                         const message = schedule?.message
                           || (schedule ? "막차 시간표에서 해당 방향의 직통 운행을 찾지 못했습니다." : "막차 시간표 API 응답을 받지 못했습니다.");
                         return <div className="last-train-deadline last-train-deadline-unavailable"><strong>막차 시간 확인 불가</strong><span>{message}</span></div>;
