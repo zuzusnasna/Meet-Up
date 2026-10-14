@@ -16,58 +16,56 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
         return;
       }
 
-      const targets = participants.map((participant) => ({
-        userId: participant.userId,
-        location: locations.find((item) => Number(item.userId) === Number(participant.userId)),
-      })).filter((item) => item.location?.latitude != null && item.location?.longitude != null);
+      const origins = participants.map((participant) => {
+        const location = locations.find((item) => Number(item.userId) === Number(participant.userId));
+        return { participant, location };
+      }).filter(({ location }) => location?.latitude != null && location?.longitude != null);
 
       setLoading(true);
-      const entries = await Promise.all(targets.map(async ({ userId, location }) => {
-        const params = new URLSearchParams({
-          meetingLatitude: String(finalPlace.latitude),
-          meetingLongitude: String(finalPlace.longitude),
-          originLatitude: String(location.latitude),
-          originLongitude: String(location.longitude),
+      try {
+        const response = await fetch("/api/transit/return-routes/batch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            meetingLatitude: Number(finalPlace.latitude),
+            meetingLongitude: Number(finalPlace.longitude),
+            origins: origins.map(({ participant, location }) => ({
+              userId: Number(participant.userId),
+              latitude: Number(location.latitude),
+              longitude: Number(location.longitude),
+            })),
+          }),
         });
 
-        try {
-          const response = await fetch("/api/transit/return-routes?" + params.toString());
-          const data = await response.json();
-          if (!response.ok) throw new Error(data.message || "귀가 경로 조회에 실패했습니다.");
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || "귀가 경로 조회에 실패했습니다.");
 
-          const routes = (Array.isArray(data.routes) ? data.routes : [])
+        const normalized = {};
+        for (const { participant } of origins) {
+          const raw = data[String(participant.userId)] || {};
+          const routes = (Array.isArray(raw.routes) ? raw.routes : [])
             .filter((route) => Number(route.transferCount) > 0)
             .sort((a, b) => Number(a.totalTimeSeconds || 0) - Number(b.totalTimeSeconds || 0))
             .slice(0, 3);
-
-          return [userId, {
-            ...data,
+          normalized[participant.userId] = {
+            ...raw,
             routes,
             message: routes.length
               ? "환승이 필요한 경로만 표시합니다."
               : "환승이 필요한 대중교통 경로를 찾지 못했습니다.",
-          }];
-        } catch (error) {
-          console.error(error);
-          return [userId, {
-            status: "ERROR",
-            message: error.message || "귀가 경로를 불러오지 못했습니다.",
-            routes: [],
-          }];
+          };
         }
-      }));
 
-      if (!cancelled) {
-        setRouteResults(Object.fromEntries(entries));
-        setLoading(false);
+        if (!cancelled) setRouteResults(normalized);
+      } catch (error) {
+        console.error(error);
+        if (!cancelled) setRouteResults({});
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }
 
-    loadRoutes().catch((error) => {
-      console.error(error);
-      if (!cancelled) setLoading(false);
-    });
-
+    loadRoutes();
     return () => { cancelled = true; };
   }, [finalPlace?.placeId, finalPlace?.latitude, finalPlace?.longitude, participants, locations]);
 
@@ -83,6 +81,12 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
   const formatDuration = (seconds) => {
     const minutes = Math.round(Number(seconds || 0) / 60);
     return minutes > 0 ? minutes + "분" : "시간 정보 없음";
+  };
+
+  const formatLastTrain = (route) => {
+    const value = route?.lastTrain?.lastDeparture?.departureTime;
+    if (!value || !/^\d{6}$/.test(String(value))) return null;
+    return `${String(value).slice(0, 2)}:${String(value).slice(2, 4)}`;
   };
 
   const formatVehicles = (vehicles = []) => vehicles
@@ -105,9 +109,7 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
     return (segment.vehicles || [])
       .map((vehicle) => {
         if (vehicle == null) return null;
-        const text = typeof vehicle === "string"
-          ? vehicle
-          : [vehicle.type || "", vehicle.name || ""].filter(Boolean).join(" ");
+        const text = typeof vehicle === "string" ? vehicle : [vehicle.type || "", vehicle.name || ""].filter(Boolean).join(" ");
         const number = typeof vehicle === "string" ? vehicle : vehicle.name || vehicle.type || "";
         const normalized = text.replace(/\s+/g, " ").trim();
         let kind = "normal";
@@ -131,9 +133,7 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
     return "transit-route-segment-other";
   };
 
-  const modeLabel = (type) => type === "SUBWAY"
-    ? "지하철"
-    : type === "BUS" ? "버스" : type === "WALKING" ? "도보" : type || "이동";
+  const modeLabel = (type) => type === "SUBWAY" ? "지하철" : type === "BUS" ? "버스" : type === "WALKING" ? "도보" : type || "이동";
 
   return (
     <section className="transit-routes-page" onClick={() => { setPinnedSegment(null); setHoveredSegment(null); }}>
@@ -152,7 +152,7 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
 
       <div className="transit-routes-notice" role="note">
         <strong>조회 기준</strong>
-        <p>약속장소에서 각 참여자의 출발지로 돌아가는 경로 중 환승 횟수가 1회 이상인 경로를 빠른 순서대로 최대 3개 표시합니다. 구간에 마우스를 올리면 상세 경로가 표시되고, 클릭하면 고정됩니다.</p>
+        <p>참여자별 요청을 하나의 배치 요청으로 묶고, 서버에서는 같은 출발지·약속장소 조합의 카카오 경로를 Redis에 10분간 캐시합니다. 경로별 막차는 첫 지하철 승차역 기준으로 표시합니다.</p>
       </div>
 
       {loading && <div className="transit-routes-loading">환승 경로를 조회하고 있습니다...</div>}
@@ -183,76 +183,44 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
                     {result?.message && <p className="transit-routes-message">{result.message}</p>}
                     {routes.length === 0 ? (
                       <div className="transit-routes-empty">{result?.message || "환승 경로를 찾지 못했습니다."}</div>
-                    ) : routes.map((route, routeIndex) => (
-                      <div className="transit-routes-option" key={routeIndex}>
-                        <div className="transit-routes-summary">
-                          <strong>{routeIndex + 1}번 경로</strong>
-                          <span>{formatDuration(route.totalTimeSeconds)} · 환승 {route.transferCount}회</span>
-                        </div>
-
-                        <div className="transit-routes-horizontal">
-                          <div className="transit-routes-endpoint">
-                            <span className="transit-routes-dot" />
-                            <strong>{finalPlace?.placeName || "약속장소"}</strong>
+                    ) : routes.map((route, routeIndex) => {
+                      const lastTrain = formatLastTrain(route);
+                      return (
+                        <div className="transit-routes-option" key={routeIndex}>
+                          <div className="transit-routes-summary">
+                            <strong>{routeIndex + 1}번 경로</strong>
+                            <span>{formatDuration(route.totalTimeSeconds)} · 환승 {route.transferCount}회</span>
                           </div>
-                          <div className="transit-routes-track">
-                            {(route.segments || []).map((segment, segmentIndex) => {
-                              const busInfo = getBusInfo(segment);
-                              const segmentKey = `${participant.userId}-${routeIndex}-${segmentIndex}`;
-                              const isPinned = pinnedSegment === segmentKey;
-                              const isActive = hoveredSegment === segmentKey || (hoveredSegment === null && isPinned);
+                          {lastTrain && <div className="transit-routes-last-train">이 경로 막차 <strong>{lastTrain}</strong></div>}
 
-                              return (
-                                <div
-                                  className={`transit-routes-segment ${getSegmentClass(segment)}${isPinned ? " is-pinned" : ""}`}
-                                  key={segmentIndex}
-                                  tabIndex="0"
-                                  onMouseEnter={() => setHoveredSegment(segmentKey)}
-                                  onMouseLeave={() => setHoveredSegment(null)}
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    setPinnedSegment(isPinned ? null : segmentKey);
-                                  }}
-                                >
-                                  <div className="transit-routes-line" />
-                                  <div className="transit-routes-label">
-                                    <span>{modeLabel(segment.type)}</span>
-                                    <strong>{formatDuration(segment.timeSeconds)}</strong>
+                          <div className="transit-routes-horizontal">
+                            <div className="transit-routes-endpoint"><span className="transit-routes-dot" /><strong>{finalPlace?.placeName || "약속장소"}</strong></div>
+                            <div className="transit-routes-track">
+                              {(route.segments || []).map((segment, segmentIndex) => {
+                                const busInfo = getBusInfo(segment);
+                                const segmentKey = `${participant.userId}-${routeIndex}-${segmentIndex}`;
+                                const isPinned = pinnedSegment === segmentKey;
+                                const isActive = hoveredSegment === segmentKey || (hoveredSegment === null && isPinned);
+                                return (
+                                  <div className={`transit-routes-segment ${getSegmentClass(segment)}${isPinned ? " is-pinned" : ""}`} key={segmentIndex} tabIndex="0" onMouseEnter={() => setHoveredSegment(segmentKey)} onMouseLeave={() => setHoveredSegment(null)} onClick={(event) => { event.stopPropagation(); setPinnedSegment(isPinned ? null : segmentKey); }}>
+                                    <div className="transit-routes-line" />
+                                    <div className="transit-routes-label"><span>{modeLabel(segment.type)}</span><strong>{formatDuration(segment.timeSeconds)}</strong></div>
+                                    {busInfo.length > 0 && <div className="transit-routes-bus-numbers" aria-label="이용 가능한 버스 번호">{busInfo.map((bus, index) => <span className={`transit-routes-bus-${bus.kind}`} key={`${bus.number}-${index}`}>{bus.number}</span>)}</div>}
+                                    {isActive && <div className="transit-routes-tooltip"><strong>{modeLabel(segment.type)} · {formatDuration(segment.timeSeconds)}</strong>{segment.guidance && <p>{segment.guidance}</p>}{segment.stops?.length > 0 && <div className="transit-routes-stops">{segment.stops.map((stop, index) => <span key={`${stop}-${index}`}>{stop}</span>)}</div>}</div>}
                                   </div>
-                                  {busInfo.length > 0 && (
-                                    <div className="transit-routes-bus-numbers" aria-label="이용 가능한 버스 번호">
-                                      {busInfo.map((bus, index) => (
-                                        <span className={`transit-routes-bus-${bus.kind}`} key={`${bus.number}-${index}`}>{bus.number}</span>
-                                      ))}
-                                    </div>
-                                  )}
-                                  {isActive && (
-                                    <div className="transit-routes-tooltip">
-                                      <strong>{modeLabel(segment.type)} · {formatDuration(segment.timeSeconds)}</strong>
-                                      {segment.guidance && <p>{segment.guidance}</p>}
-                                      {segment.stops?.length > 0 && (
-                                        <div className="transit-routes-stops">
-                                          {segment.stops.map((stop, index) => <span key={`${stop}-${index}`}>{stop}</span>)}
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
+                                );
+                              })}
+                            </div>
+                            <div className="transit-routes-endpoint"><span className="transit-routes-dot" /><strong>{location?.address || "출발지"}</strong></div>
                           </div>
-                          <div className="transit-routes-endpoint">
-                            <span className="transit-routes-dot" />
-                            <strong>{location?.address || "출발지"}</strong>
-                          </div>
-                        </div>
 
-                        <div className="transit-routes-meta">
-                          총 {formatDuration(route.totalTimeSeconds)} · {Math.round(Number(route.totalDistanceMeters || 0))}m
-                          {url && <> · <a href={url} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>카카오맵에서 보기 ↗</a></>}
+                          <div className="transit-routes-meta">
+                            총 {formatDuration(route.totalTimeSeconds)} · {Math.round(Number(route.totalDistanceMeters || 0))}m
+                            {url && <> · <a href={url} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>카카오맵에서 보기 ↗</a></>}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </>
                 )}
               </article>
