@@ -88,8 +88,8 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
     return remainingMinutes > 0 ? `${hours}시간 ${remainingMinutes}분` : `${hours}시간`;
   };
 
-  const formatLastTrain = (route) => {
-    const value = route?.lastTrain?.lastDeparture?.departureTime;
+  const formatLastTrain = (lastTrainInfo) => {
+    const value = lastTrainInfo?.lastDeparture?.departureTime;
     if (!value || !/^\d{6}$/.test(String(value))) return null;
     return `${String(value).slice(0, 2)}:${String(value).slice(2, 4)}`;
   };
@@ -215,8 +215,6 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
                             <strong>{routeIndex + 1}번 경로</strong>
                             <span>{formatDuration(route.totalTimeSeconds)} · 환승 {route.transferCount}회</span>
                           </div>
-                          {lastTrain && <div className="transit-routes-last-train">이 경로 막차 <strong>{lastTrain}</strong></div>}
-
                           <div className="transit-routes-horizontal">
                             <div className="transit-routes-endpoint">
                               
@@ -237,6 +235,13 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
                                   <div className={`transit-routes-segment ${getSegmentClass(segment)}${isPinned ? " is-pinned" : ""}${isBusTransfer ? " is-bus-transfer" : ""}`} key={segmentIndex} tabIndex="0" onMouseEnter={() => setHoveredSegment(segmentKey)} onMouseLeave={() => setHoveredSegment(null)} onClick={(event) => { event.stopPropagation(); setPinnedSegment(isPinned ? null : segmentKey); }}>
                                     <div className="transit-routes-line" />
                                     <div className="transit-routes-label"><span>{modeLabel(segment.type)}</span><strong>{formatDuration(segment.timeSeconds)}</strong></div>
+                                    {segment.type === "SUBWAY" && (
+                                      <div className="transit-routes-segment-last-train">
+                                        {formatLastTrain(segment.lastTrain)
+                                          ? <>막차 <strong>{formatLastTrain(segment.lastTrain)}</strong></>
+                                          : "막차 정보 없음"}
+                                      </div>
+                                    )}
                                     {busInfo.length > 0 && <div className="transit-routes-bus-numbers" aria-label="이용 가능한 버스 번호">{busInfo.map((bus, index) => <span className={`transit-routes-bus-${bus.kind}`} key={`${bus.number}-${index}`}>{bus.number}</span>)}</div>}
                                     {isBusTransfer && <span className="transit-routes-transfer-badge">버스 환승</span>}
                                     {isActive && <div className="transit-routes-tooltip"><strong>{modeLabel(segment.type)} · {formatDuration(segment.timeSeconds)}</strong>{segment.guidance && <p>{segment.guidance}</p>}{segment.stops?.length > 0 && <div className="transit-routes-stops">{segment.stops.map((stop, index) => <span key={`${stop}-${index}`}>{stop}</span>)}</div>}</div>}
