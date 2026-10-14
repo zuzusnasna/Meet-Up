@@ -36,16 +36,11 @@ public class LastTrainService {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final RedisCacheService redisCacheService;
 
-    /**
-     * 전체 환승 연결 가능 여부를 계산하지 않고, 카카오가 반환한 각 경로의
-     * 첫 번째 지하철 승차 구간을 기준으로 그 경로에서 이용할 수 있는 마지막 출발 시각을 표시한다.
-     */
     public Map<String, Object> findLastTrainForRoute(List<Map<String, Object>> segments) {
         Map<String, Object> result = new LinkedHashMap<>();
         Map<String, Object> subwaySegment = segments == null ? null : segments.stream()
                 .filter(segment -> "SUBWAY".equalsIgnoreCase(String.valueOf(segment.get("type"))))
-                .findFirst()
-                .orElse(null);
+                .findFirst().orElse(null);
 
         if (subwaySegment == null) {
             result.put("status", "NO_SUBWAY_SEGMENT");
@@ -63,6 +58,7 @@ public class LastTrainService {
         }
 
         String stationName = String.valueOf(stops.get(0)).trim();
+        String routeText = vehicleText(subwaySegment.get("vehicles"));
         if (stationName.isBlank()) {
             result.put("status", "INVALID_SUBWAY_SEGMENT");
             result.put("message", "지하철 승차역을 확인할 수 없습니다.");
@@ -70,7 +66,6 @@ public class LastTrainService {
             return result;
         }
 
-        String routeText = vehicleText(subwaySegment.get("vehicles"));
         String dayType = todayDayType();
         List<Map<String, String>> stations = findStations(stationName);
         if (stations.isEmpty()) {
@@ -86,11 +81,9 @@ public class LastTrainService {
             String routeName = station.getOrDefault("routeName", "");
             for (String direction : List.of("U", "D")) {
                 for (Map<String, Object> schedule : findSchedules(stationId, dayType, direction)) {
-                    String time = firstText(schedule, "subwayArrivalTime", "subwayTime", "arrivalTime", "depTime", "departureTime");
+                    String time = firstText(schedule, "arrtime", "subwayArrivalTime", "subwayTime", "arrivalTime", "depTime", "departureTime");
                     if (!isValidTime(time)) continue;
-
-                    String scheduleRoute = firstText(schedule,
-                            "subwayRouteName", "subwayRouteNm", "routeName", "routeNm");
+                    String scheduleRoute = firstText(schedule, "subwayRouteName", "subwayRouteNm", "routeName", "routeNm");
                     if (!routeMatches(routeText, scheduleRoute, routeName)) continue;
 
                     Map<String, Object> candidate = new LinkedHashMap<>(schedule);
@@ -136,11 +129,11 @@ public class LastTrainService {
         if (items.isObject()) items = objectMapper.createArrayNode().add(items);
         if (items.isArray()) {
             for (JsonNode item : items) {
-                String name = firstText(item, "subwayStationName", "subwayStationNm", "stationName");
+                String name = firstText(item, "subwayStationName", "subwayStationNm", "subwaystationname", "stationName");
                 if (!normalize(name).equals(normalize(stationName))) continue;
                 Map<String, String> station = new LinkedHashMap<>();
-                station.put("id", firstText(item, "subwayStationId", "stationId"));
-                station.put("routeName", firstText(item, "subwayRouteName", "subwayRouteNm", "routeName"));
+                station.put("id", firstText(item, "subwayStationId", "subwaystationid", "stationId"));
+                station.put("routeName", firstText(item, "subwayRouteName", "subwayroutename", "subwayRouteNm", "routeName"));
                 if (!station.get("id").isBlank()) stations.add(station);
             }
         }
@@ -160,16 +153,13 @@ public class LastTrainService {
                         + "&subwayStationId=" + encode(stationId)
                         + "&dailyTypeCode=" + encode(dayType)
                         + "&upDownTypeCode=" + encode(direction)
-                        + "&pageNo=1&numOfRows=100&_type=json");
+                        + "&pageNo=1&numOfRows=999&_type=json");
 
         List<Map<String, Object>> schedules = new ArrayList<>();
         JsonNode items = root.path("response").path("body").path("items").path("item");
         if (items.isObject()) items = objectMapper.createArrayNode().add(items);
         if (items.isArray()) {
-            for (JsonNode item : items) {
-                Map<String, Object> schedule = objectMapper.convertValue(item, new TypeReference<Map<String, Object>>() {});
-                schedules.add(schedule);
-            }
+            for (JsonNode item : items) schedules.add(objectMapper.convertValue(item, new TypeReference<Map<String, Object>>() {}));
         }
 
         redisCacheService.put(key, schedules, SCHEDULE_CACHE_TTL);
@@ -178,9 +168,9 @@ public class LastTrainService {
 
     private String todayDayType() {
         return switch (LocalDate.now().getDayOfWeek()) {
-            case SATURDAY -> "2";
-            case SUNDAY -> "3";
-            default -> "1";
+            case SATURDAY -> "02";
+            case SUNDAY -> "03";
+            default -> "01";
         };
     }
 
@@ -236,8 +226,7 @@ public class LastTrainService {
             connection.setRequestProperty("Accept", "application/json");
             int status = connection.getResponseCode();
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(
-                    status >= 200 && status < 300 ? connection.getInputStream() : connection.getErrorStream(),
-                    StandardCharsets.UTF_8))) {
+                    status >= 200 && status < 300 ? connection.getInputStream() : connection.getErrorStream(), StandardCharsets.UTF_8))) {
                 StringBuilder body = new StringBuilder();
                 String line;
                 while ((line = reader.readLine()) != null) body.append(line);
