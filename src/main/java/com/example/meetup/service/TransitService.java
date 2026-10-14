@@ -79,14 +79,32 @@ public class TransitService {
             }
         }
 
+        boolean directRouteFound = !matchingSchedules.isEmpty();
+
+        // 직통 운행을 찾지 못하더라도 막차 시각이 아예 사라지지 않도록,
+        // 약속장소 주변 역의 마지막 출발 시간표를 참고값으로 사용한다.
+        // 이 값은 참여자 출발지까지 연결되는 막차를 보장하지 않는다.
         if (matchingSchedules.isEmpty()) {
-            return failure(result, "DIRECT_ROUTE_NOT_FOUND",
-                    "출발지·목적지의 호선별 시간표에서 직통 운행을 찾지 못했습니다. 환승 경로는 아직 계산하지 않습니다.");
+            for (TagoStation origin : originStations) {
+                for (String direction : List.of("U", "D")) {
+                    JsonNode schedules = fetchSchedules(origin.id(), normalizedDayType, direction);
+                    for (JsonNode schedule : schedules) {
+                        if (!scheduleTime(schedule).equals("000000")) {
+                            matchingSchedules.add(new ScheduleMatch(schedule, origin, origin));
+                        }
+                    }
+                }
+            }
+        }
+
+        if (matchingSchedules.isEmpty()) {
+            return failure(result, "SCHEDULE_NOT_FOUND",
+                    "약속장소 주변 역의 출발 시간표를 찾지 못했습니다. TAGO 응답과 인증키를 확인하세요.");
         }
 
         ScheduleMatch lastMatch = matchingSchedules.stream()
                 .filter(match -> !scheduleTime(match.schedule()).equals("000000"))
-                .max(Comparator.comparing(match -> scheduleTime(match.schedule())))
+                .max(Comparator.comparing(match -> normalizedScheduleTime(scheduleTime(match.schedule()))))
                 .orElse(null);
 
         if (lastMatch == null) {
@@ -110,7 +128,9 @@ public class TransitService {
         lastDeparture.put("destinationTagoStationId", matchedDestination.id());
 
         result.put("status", "OK");
-        result.put("message", "호선별 TAGO 역 ID와 시간표를 대조해 확인한 직통 운행 후보입니다. 환승 경로를 포함한 최종 막차 보장은 아닙니다.");
+        result.put("message", directRouteFound
+                ? "호선별 TAGO 시간표에서 확인한 직통 운행 후보입니다. 환승 경로를 포함한 최종 막차 보장은 아닙니다."
+                : "직통 운행을 찾지 못해 약속장소 주변 역의 마지막 출발 시각을 참고값으로 표시합니다. 참여자 출발지까지 연결되는 막차 시각은 아닐 수 있습니다.");
         result.put("lastDeparture", lastDeparture);
         return result;
     }
@@ -304,9 +324,21 @@ public class TransitService {
     }
 
     private String scheduleTime(JsonNode node) {
-        String value = firstText(node, "depTime", "departureTime", "startTime", "arrtime", "arrivalTime", "arrTime");
+        String value = firstText(node, "depTime", "dep_time", "departureTime", "departure_time",
+                "startTime", "subwayDepartureTime", "subwayDepTime",
+                "arrtime", "arrivalTime", "arrival_time", "arrTime");
         String digits = value.replaceAll("[^0-9]", "");
-        return digits.isBlank() ? "000000" : digits;
+        if (digits.isBlank()) return "000000";
+        if (digits.length() == 4) return digits + "00";
+        if (digits.length() == 5) return "0" + digits;
+        return digits.length() > 6 ? digits.substring(0, 6) : digits;
+    }
+
+    private String normalizedScheduleTime(String value) {
+        String digits = value == null ? "" : value.replaceAll("[^0-9]", "");
+        if (digits.length() == 4) return digits + "00";
+        if (digits.length() == 5) return "0" + digits;
+        return digits.length() > 6 ? digits.substring(0, 6) : digits;
     }
 
     private String normalizeStationName(String name) {
