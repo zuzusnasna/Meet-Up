@@ -129,8 +129,9 @@ public class TransitService {
             double destinationLatitude, double destinationLongitude,
             String dayType, String routeSegmentsJson) {
 
-        String normalizedDayType = normalizeDayType(dayType);
         Map<String, Object> result = new LinkedHashMap<>();
+        try {
+        String normalizedDayType = normalizeDayType(dayType);
         result.put("dayType", normalizedDayType);
 
         JsonNode segments;
@@ -264,6 +265,11 @@ public class TransitService {
         result.put("message", "귀가 경로의 지하철 구간별 출발 시각과 환승 연결을 기준으로 계산한 후보입니다. TAGO 응답에 종착역 정보가 있는 경우 목적 구간과 대조했으며, 실제 운행 지연과 역 내 이동시간에 따라 달라질 수 있습니다.");
         result.put("lastDeparture", departure);
         return result;
+        } catch (Exception e) {
+            // 외부 TAGO API 오류나 예상하지 못한 경로 데이터로 인해 API 전체가 500이 되지 않도록 실패 응답으로 변환한다.
+            return failure(result, "TRANSIT_LOOKUP_ERROR",
+                    "막차 시간표 조회 중 오류가 발생했습니다. 서버 로그에서 TAGO API 응답과 예외 원인을 확인해야 합니다.");
+        }
     }
 
     private List<TagoStation> resolveTagoStationsByName(String stationName) {
