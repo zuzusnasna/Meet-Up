@@ -156,22 +156,39 @@ public class TransitService {
         }
 
         List<RouteLeg> legs = new ArrayList<>();
+        int subwaySegmentCount = 0;
+        int invalidSubwaySegmentCount = 0;
         for (int i = 0; i < segments.size(); i++) {
             JsonNode segment = segments.get(i);
-            if (!"SUBWAY".equalsIgnoreCase(firstText(segment, "type"))) continue;
+            if (!"SUBWAY".equalsIgnoreCase(firstText(segment, "type").trim())) continue;
+            subwaySegmentCount++;
             JsonNode stops = segment.path("stops");
-            if (!stops.isArray() || stops.size() < 2) continue;
-            String start = stops.get(0).asText("");
-            String end = stops.get(stops.size() - 1).asText("");
-            if (start.isBlank() || end.isBlank()) continue;
+            if (!stops.isArray() || stops.size() < 2) {
+                invalidSubwaySegmentCount++;
+                continue;
+            }
+            String start = stops.get(0).asText("").trim();
+            String end = stops.get(stops.size() - 1).asText("").trim();
+            if (start.isBlank() || end.isBlank()) {
+                invalidSubwaySegmentCount++;
+                continue;
+            }
             int durationMinutes = Math.max(1, (int) Math.ceil(
                     Math.max(0, segment.path("timeSeconds").asDouble(0)) / 60.0));
             legs.add(new RouteLeg(i, start, end, durationMinutes));
         }
 
-        if (legs.isEmpty()) {
+        if (subwaySegmentCount == 0) {
             return failure(result, "NO_SUBWAY_SEGMENT",
-                    "이 경로에서 시간표를 검증할 지하철 구간을 찾지 못했습니다.");
+                    "이 경로에는 지하철 구간이 없어 지하철 막차 시간표 검증 대상이 아닙니다.");
+        }
+        if (invalidSubwaySegmentCount > 0 || legs.size() != subwaySegmentCount) {
+            return failure(result, "INVALID_SUBWAY_SEGMENT",
+                    "일부 지하철 구간의 역 정보가 부족해 전체 경로의 막차 연결을 검증할 수 없습니다.");
+        }
+        if (legs.isEmpty()) {
+            return failure(result, "INVALID_SUBWAY_SEGMENT",
+                    "지하철 역 정보를 확인할 수 없어 막차 시간표를 검증할 수 없습니다.");
         }
 
         List<List<TrainCandidate>> candidatesByLeg = new ArrayList<>();
@@ -259,7 +276,9 @@ public class TransitService {
                     "각 지하철 구간의 시간표를 연결할 수 있는 막차 조합을 찾지 못했습니다.");
         }
 
-        JsonNode schedule = selectedLast.schedule();
+        // 화면의 '출발 마감 추정'은 약속장소에서 첫 지하철을 타러 출발할 시각이므로
+        // 마지막 환승 구간이 아니라 첫 지하철 구간의 출발 시각을 반환한다.
+        JsonNode schedule = selectedFirst.schedule();
         Map<String, Object> departure = new LinkedHashMap<>();
         departure.put("departureTime", scheduleTime(schedule));
         departure.put("destinationStationName", firstText(schedule,
@@ -267,10 +286,10 @@ public class TransitService {
                 "destinationStationName", "endStationName", "terminalStationName", "arrivalStationName"));
         departure.put("routeName", firstText(schedule, "subwayRouteName", "subwayRouteNm", "routeName", "routeNm"));
         departure.put("direction", firstText(schedule, "upDownTypeCode", "upDownTypeName"));
-        departure.put("routeSegmentIndex", selectedLast.leg().segmentIndex());
-        departure.put("originStationName", selectedLast.leg().startStation());
-        departure.put("originTagoStationId", selectedLast.station().id());
-        departure.put("destinationStationNameOnRoute", selectedLast.leg().endStation());
+        departure.put("routeSegmentIndex", selectedFirst.leg().segmentIndex());
+        departure.put("originStationName", selectedFirst.leg().startStation());
+        departure.put("originTagoStationId", selectedFirst.station().id());
+        departure.put("destinationStationNameOnRoute", selectedFirst.leg().endStation());
 
         result.put("status", "OK");
         result.put("message", "귀가 경로의 지하철 구간별 출발 시각과 환승 연결을 기준으로 계산한 후보입니다. TAGO 응답에 종착역 정보가 있는 경우 목적 구간과 대조했으며, 실제 운행 지연과 역 내 이동시간에 따라 달라질 수 있습니다.");
