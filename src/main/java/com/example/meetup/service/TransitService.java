@@ -87,7 +87,7 @@ public class TransitService {
         }
 
         ScheduleMatch lastMatch = matchingSchedules.stream()
-                .filter(match -> !scheduleTime(match.schedule()).equals("000000"))
+                .filter(match -> hasScheduleTime(match.schedule()))
                 .max(Comparator.comparing(match -> normalizedScheduleTime(scheduleTime(match.schedule()))))
                 .orElse(null);
 
@@ -177,7 +177,7 @@ public class TransitService {
                                 "arrivalStationName");
                         String scheduleRoute = firstText(schedule,
                                 "subwayRouteName", "subwayRouteNm", "routeName", "routeNm");
-                        if (time.equals("000000") || !isSameStation(terminal, normalizeStationName(leg.endStation()))) continue;
+                        if (!hasScheduleTime(schedule) || !isSameStation(terminal, normalizeStationName(leg.endStation()))) continue;
                         if (!scheduleRoute.isBlank() && !station.routeName().isBlank()
                                 && !routesMatch(scheduleRoute, station.routeName())) continue;
                         int departureMinutes = scheduleMinutes(time);
@@ -465,6 +465,13 @@ public class TransitService {
             if (!value.isBlank()) return value;
         }
         return "";
+    }
+
+    private boolean hasScheduleTime(JsonNode node) {
+        String value = firstText(node, "depTime", "dep_time", "departureTime", "departure_time",
+                "startTime", "subwayDepartureTime", "subwayDepTime",
+                "arrtime", "arrivalTime", "arrival_time", "arrTime");
+        return !value.isBlank() && !value.replaceAll("[^0-9]", "").isBlank();
     }
 
     private String scheduleTime(JsonNode node) {
