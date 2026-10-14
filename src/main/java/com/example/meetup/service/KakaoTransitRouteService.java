@@ -81,7 +81,23 @@ public class KakaoTransitRouteService {
 
             List<Map<String, Object>> segments = new ArrayList<>();
             JsonNode steps = routeNode.path("steps");
-            if (steps.isArray()) for (JsonNode step : steps) segments.add(parseSegment(step));
+            if (steps.isArray()) {
+                for (JsonNode step : steps) {
+                    Map<String, Object> segment = parseSegment(step);
+                    if ("SUBWAY".equalsIgnoreCase(String.valueOf(segment.get("type")))) {
+                        try {
+                            segment.put("lastTrain", lastTrainService.findLastTrainForRoute(List.of(segment)));
+                        } catch (Exception e) {
+                            Map<String, Object> lastTrainError = new LinkedHashMap<>();
+                            lastTrainError.put("status", "ERROR");
+                            lastTrainError.put("message", "이 구간의 막차 정보를 조회하지 못했습니다.");
+                            lastTrainError.put("lastDeparture", null);
+                            segment.put("lastTrain", lastTrainError);
+                        }
+                    }
+                    segments.add(segment);
+                }
+            }
             route.put("segments", segments);
 
             try {
