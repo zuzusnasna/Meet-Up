@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import "./transit-routes.css";
+import "../transit-routes.css";
 
 export default function TransitRoutePanel({ finalPlace, participants = [], locations = [] }) {
   const [routeResults, setRouteResults] = useState({});
