@@ -147,7 +147,12 @@ public class KakaoTransitRouteService {
     private Map<String, Object> parseSegment(JsonNode step) {
         JsonNode properties = step.path("properties");
         Map<String, Object> segment = new LinkedHashMap<>();
-        segment.put("type", text(properties, "type"));
+        String rawType = text(properties, "type");
+        String normalizedType = rawType == null ? "" : rawType.trim().toUpperCase();
+        if (normalizedType.equals("WALK") || normalizedType.equals("FOOT") || normalizedType.equals("WALKING")) {
+            normalizedType = "WALKING";
+        }
+        segment.put("type", normalizedType);
         segment.put("guidance", text(properties, "guidance"));
         segment.put("distanceMeters", number(properties, "distance"));
         segment.put("timeSeconds", number(properties, "time"));
