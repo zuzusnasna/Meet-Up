@@ -36,6 +36,10 @@ dependencies {
 
 	// Validation
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+	// Redis 캐시
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
 	runtimeOnly 'com.oracle.database.jdbc:ojdbc17'
 	// Lombok
 	compileOnly 'org.projectlombok:lombok'
