@@ -1,5 +1,6 @@
 package com.example.meetup.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -12,11 +13,13 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -24,19 +27,26 @@ public class BusTransitService {
 
     private static final double INITIAL_RADIUS_METERS = 500.0;
     private static final double EXPANDED_RADIUS_METERS = 1000.0;
+    private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
 
     @Value("${tago.service-key}")
     private String serviceKey;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final RedisCacheService redisCacheService;
 
     public Map<String, Object> findBusArrivals(double latitude, double longitude) {
+        String cacheKey = "transit:bus-arrivals:" + coordinate(latitude) + ":" + coordinate(longitude);
+        Map<String, Object> cached = redisCacheService.get(cacheKey, MAP_TYPE);
+        if (cached != null) return cached;
+
         Map<String, Object> result = new LinkedHashMap<>();
         JsonNode station = findNearbyStation(latitude, longitude);
 
         if (station == null) {
             result.put("status", "BUS_STATION_NOT_FOUND");
             result.put("message", "약속장소 주변 1km에서 TAGO 버스정류장을 찾지 못했습니다.");
+            redisCacheService.put(cacheKey, result, Duration.ofSeconds(10));
             return result;
         }
 
@@ -47,6 +57,7 @@ public class BusTransitService {
         if (cityCode.isBlank() || nodeId.isBlank()) {
             result.put("status", "BUS_STATION_DATA_INVALID");
             result.put("message", "TAGO 버스정류장 응답에서 도시코드 또는 정류장 ID를 확인하지 못했습니다.");
+            redisCacheService.put(cacheKey, result, Duration.ofSeconds(10));
             return result;
         }
 
@@ -55,8 +66,7 @@ public class BusTransitService {
                         + "?serviceKey=" + encodedKey()
                         + "&cityCode=" + encode(cityCode)
                         + "&nodeId=" + encode(nodeId)
-                        + "&pageNo=1&numOfRows=10&_type=json"
-        );
+                        + "&pageNo=1&numOfRows=10&_type=json");
 
         JsonNode items = arrivals.path("response").path("body").path("items").path("item");
         result.put("status", "OK");
@@ -65,17 +75,14 @@ public class BusTransitService {
         result.put("cityCode", cityCode);
         result.put("nodeId", nodeId);
         result.put("arrivals", items.isArray() ? items : items.isObject() ? objectMapper.createArrayNode().add(items) : objectMapper.createArrayNode());
+        redisCacheService.put(cacheKey, result, Duration.ofSeconds(10));
         return result;
     }
 
     private JsonNode findNearbyStation(double latitude, double longitude) {
         JsonNode nearbyStations = requestNearbyStations(latitude, longitude, 10);
         JsonNode station = findNearestStationWithin(nearbyStations, latitude, longitude, INITIAL_RADIUS_METERS);
-        if (station != null) {
-            return station;
-        }
-
-        // 500m 내 정류장이 없을 때만 조회 건수를 늘려 최대 1km 범위에서 다시 찾는다.
+        if (station != null) return station;
         JsonNode expandedStations = requestNearbyStations(latitude, longitude, 100);
         return findNearestStationWithin(expandedStations, latitude, longitude, EXPANDED_RADIUS_METERS);
     }
@@ -86,23 +93,18 @@ public class BusTransitService {
                         + "?serviceKey=" + encodedKey()
                         + "&gpsLati=" + latitude
                         + "&gpsLong=" + longitude
-                        + "&pageNo=1&numOfRows=" + numOfRows + "&_type=json"
-        );
+                        + "&pageNo=1&numOfRows=" + numOfRows + "&_type=json");
     }
 
     private JsonNode findNearestStationWithin(JsonNode root, double latitude, double longitude, double radiusMeters) {
         List<JsonNode> stations = new ArrayList<>();
         collectStations(root, stations);
-
         JsonNode nearest = null;
         double nearestDistance = Double.MAX_VALUE;
         for (JsonNode station : stations) {
             double stationLatitude = parseCoordinate(firstText(station, "gpslati", "gpsLati", "latitude"));
             double stationLongitude = parseCoordinate(firstText(station, "gpslong", "gpsLong", "longitude"));
-            if (Double.isNaN(stationLatitude) || Double.isNaN(stationLongitude)) {
-                continue;
-            }
-
+            if (Double.isNaN(stationLatitude) || Double.isNaN(stationLongitude)) continue;
             double distance = distanceMeters(latitude, longitude, stationLatitude, stationLongitude);
             if (distance <= radiusMeters && distance < nearestDistance) {
                 nearest = station;
@@ -122,22 +124,15 @@ public class BusTransitService {
                 return;
             }
             Iterator<JsonNode> values = node.elements();
-            while (values.hasNext()) {
-                collectStations(values.next(), stations);
-            }
+            while (values.hasNext()) collectStations(values.next(), stations);
         } else if (node.isArray()) {
-            for (JsonNode child : node) {
-                collectStations(child, stations);
-            }
+            for (JsonNode child : node) collectStations(child, stations);
         }
     }
 
     private double parseCoordinate(String value) {
-        try {
-            return Double.parseDouble(value);
-        } catch (NumberFormatException e) {
-            return Double.NaN;
-        }
+        try { return Double.parseDouble(value); }
+        catch (NumberFormatException e) { return Double.NaN; }
     }
 
     private double distanceMeters(double latitude1, double longitude1, double latitude2, double longitude2) {
@@ -190,5 +185,9 @@ public class BusTransitService {
 
     private String encode(String value) {
         return URLEncoder.encode(value == null ? "" : value, StandardCharsets.UTF_8);
+    }
+
+    private String coordinate(double value) {
+        return String.format(Locale.ROOT, "%.4f", value);
     }
 }
