@@ -66,6 +66,13 @@ public class LastTrainService {
             return result;
         }
 
+        if (serviceKey == null || serviceKey.isBlank()) {
+            result.put("status", "SERVICE_KEY_MISSING");
+            result.put("message", "TAGO_SERVICE_KEY 설정이 없어 막차 시간표를 조회할 수 없습니다.");
+            result.put("lastDeparture", null);
+            return result;
+        }
+
         String dayType = todayDayType();
         List<Map<String, String>> stations = findStations(stationName);
         if (stations.isEmpty()) {
@@ -81,7 +88,9 @@ public class LastTrainService {
             String routeName = station.getOrDefault("routeName", "");
             for (String direction : List.of("U", "D")) {
                 for (Map<String, Object> schedule : findSchedules(stationId, dayType, direction)) {
-                    String time = firstText(schedule, "arrtime", "subwayArrivalTime", "subwayTime", "arrivalTime", "depTime", "departureTime");
+                    String time = normalizeTime(firstText(schedule,
+                        "arrtime", "arrTime", "subwayArrivalTime", "subwayTime",
+                        "arrivalTime", "depTime", "departureTime", "lastTrainTime", "trainTime"));
                     if (!isValidTime(time)) continue;
                     String scheduleRoute = firstText(schedule, "subwayRouteName", "subwayRouteNm", "routeName", "routeNm");
                     if (!routeMatches(routeText, scheduleRoute, routeName)) continue;
@@ -138,7 +147,8 @@ public class LastTrainService {
             }
         }
 
-        redisCacheService.put(key, stations, STATION_CACHE_TTL);
+        // API 키 오류나 일시적인 API 응답으로 빈 결과가 나와도 장시간 캐시하지 않는다.
+        if (!stations.isEmpty()) redisCacheService.put(key, stations, STATION_CACHE_TTL);
         return stations;
     }
 
@@ -162,7 +172,8 @@ public class LastTrainService {
             for (JsonNode item : items) schedules.add(objectMapper.convertValue(item, new TypeReference<Map<String, Object>>() {}));
         }
 
-        redisCacheService.put(key, schedules, SCHEDULE_CACHE_TTL);
+        // 시간표가 비어 있는 응답은 재조회할 수 있도록 캐시하지 않는다.
+        if (!schedules.isEmpty()) redisCacheService.put(key, schedules, SCHEDULE_CACHE_TTL);
         return schedules;
     }
 
@@ -176,10 +187,39 @@ public class LastTrainService {
 
     private boolean routeMatches(String vehicleText, String scheduleRoute, String stationRoute) {
         if (vehicleText == null || vehicleText.isBlank()) return true;
+
         String target = normalize(vehicleText);
-        if (!scheduleRoute.isBlank() && target.contains(normalize(scheduleRoute))) return true;
-        if (!stationRoute.isBlank() && target.contains(normalize(stationRoute))) return true;
-        return scheduleRoute.isBlank() && stationRoute.isBlank();
+        String schedule = normalize(scheduleRoute);
+        String station = normalize(stationRoute);
+
+        // 노선 API마다 "2호선" / "수도권2호선"처럼 표기가 다를 수 있어,
+        // 노선 번호가 명확하면 번호를 우선 비교한다.
+        String targetLine = subwayLineNumber(target);
+        String scheduleLine = subwayLineNumber(schedule);
+        String stationLine = subwayLineNumber(station);
+        if (!targetLine.isBlank()) {
+            if (!scheduleLine.isBlank()) return targetLine.equals(scheduleLine);
+            if (!stationLine.isBlank()) return targetLine.equals(stationLine);
+        }
+
+        return (!schedule.isBlank() && (target.contains(schedule) || schedule.contains(target)))
+                || (!station.isBlank() && (target.contains(station) || station.contains(target)))
+                || (schedule.isBlank() && station.isBlank());
+    }
+
+    private String subwayLineNumber(String value) {
+        if (value == null || value.isBlank()) return "";
+        java.util.regex.Matcher matcher = java.util.regex.Pattern
+                .compile("(\\d{1,2})호선").matcher(value);
+        return matcher.find() ? matcher.group(1) : "";
+    }
+
+    private String normalizeTime(String value) {
+        if (value == null) return "";
+        String digits = value.trim().replaceAll("[^0-9]", "");
+        if (digits.matches("\\d{4}")) return digits + "00";
+        if (digits.matches("\\d{6}")) return digits;
+        return "";
     }
 
     private String vehicleText(Object vehicles) {
