@@ -33,12 +33,17 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
           // 각 카카오 귀가 경로별 지하철 구간을 보내 시간표와 환승 연결을 따로 검증한다.
           const routesWithSchedules = await Promise.all((Array.isArray(data.routes) ? data.routes : []).map(async (route) => {
             try {
+              const routeSegments = Array.isArray(route.segments) ? route.segments : [];
+              const nightBusIndex = routeSegments.findIndex(isNightBus);
+              const validatedSegments = nightBusIndex >= 0
+                ? routeSegments.slice(0, nightBusIndex)
+                : routeSegments;
               const scheduleParams = new URLSearchParams({
                 originLatitude: String(finalPlace.latitude),
                 originLongitude: String(finalPlace.longitude),
                 destinationLatitude: String(location.latitude),
                 destinationLongitude: String(location.longitude),
-                routeSegments: JSON.stringify(route.segments || []),
+                routeSegments: JSON.stringify(validatedSegments),
               });
               const scheduleResponse = await fetch("/api/transit/last-train/route?" + scheduleParams.toString());
               const lastTrain = await scheduleResponse.json();
@@ -108,14 +113,19 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
     // 심야버스는 막차 계산에서 제외하고, 그 직전의 지하철/일반 버스를 기준 구간으로 삼는다.
     const nightBusIndex = segments.findIndex(isNightBus);
     const limitIndex = nightBusIndex >= 0 ? nightBusIndex : segments.length;
-    let targetIndex = -1;
-    for (let index = limitIndex - 1; index >= 0; index -= 1) {
-      if (segments[index]?.type === "SUBWAY" || segments[index]?.type === "BUS") {
-        targetIndex = index;
-        break;
+    const reportedIndex = Number(lastTrain?.lastDeparture?.routeSegmentIndex);
+    let targetIndex = Number.isInteger(reportedIndex) && reportedIndex >= 0
+      ? reportedIndex
+      : -1;
+    if (targetIndex < 0) {
+      for (let index = limitIndex - 1; index >= 0; index -= 1) {
+        if (segments[index]?.type === "SUBWAY" || segments[index]?.type === "BUS") {
+          targetIndex = index;
+          break;
+        }
       }
     }
-    if (targetIndex < 0) return null;
+    if (targetIndex < 0 || targetIndex >= limitIndex) return null;
 
     const precedingMinutes = segments.slice(0, targetIndex)
       .reduce((total, segment) => total + Math.max(0, Number(segment?.timeSeconds || 0)) / 60, 0);
