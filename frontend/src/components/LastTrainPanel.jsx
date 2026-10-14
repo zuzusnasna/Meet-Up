@@ -76,17 +76,26 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
     return match ? `last-train-line-${match[1]}` : "last-train-line-default";
   };
 
-  const getBusNumbers = (segment) => {
+  const getBusInfo = (segment) => {
     if (segment.type !== "BUS") return [];
-    const values = (segment.vehicles || [])
+    return (segment.vehicles || [])
       .map((vehicle) => {
-        if (vehicle == null) return "";
-        if (typeof vehicle === "string") return vehicle;
-        return vehicle.name || vehicle.type || "";
+        if (vehicle == null) return null;
+        const text = typeof vehicle === "string" ? vehicle : [vehicle.type || "", vehicle.name || ""].filter(Boolean).join(" ");
+        const number = typeof vehicle === "string" ? vehicle : vehicle.name || vehicle.type || "";
+        const normalized = text.replace(/\s+/g, " ").trim();
+        let kind = "normal";
+        if (/마을/.test(normalized)) kind = "village";
+        else if (/시외/.test(normalized)) kind = "intercity";
+        else if (/고속/.test(normalized)) kind = "express";
+        else if (/광역|급행/.test(normalized)) kind = "metropolitan";
+        else if (/지선/.test(normalized)) kind = "branch";
+        else if (/간선/.test(normalized)) kind = "trunk";
+        else if (/순환/.test(normalized)) kind = "circulation";
+        return { number: String(number).trim(), kind };
       })
-      .map((value) => String(value).trim())
-      .filter(Boolean);
-    return [...new Set(values)];
+      .filter((item) => item?.number)
+      .filter((item, index, array) => array.findIndex((candidate) => candidate.number === item.number) === index);
   };
 
   const getSegmentClass = (segment) => {
@@ -125,7 +134,7 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
                         <div className="last-train-route-endpoint"><span className="last-train-route-dot" /><strong>{finalPlace?.placeName || "약속장소"}</strong></div>
                         <div className="last-train-horizontal-track">
                           {(route.segments || []).map((segment, segmentIndex) => {
-                            const busNumbers = getBusNumbers(segment);
+                            const busInfo = getBusInfo(segment);
                             const segmentKey = `${participant.userId}-${routeIndex}-${segmentIndex}`;
                             const isPinned = pinnedSegment === segmentKey;
                             const isActive = hoveredSegment === segmentKey || (hoveredSegment === null && isPinned);
@@ -142,7 +151,7 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
                             >
                               <div className="last-train-horizontal-line" />
                               <div className="last-train-horizontal-label"><span>{modeLabel(segment.type)}</span><strong>{formatDuration(segment.timeSeconds)}</strong></div>
-                              {busNumbers.length > 0 && <div className="last-train-bus-numbers" aria-label="이용 가능한 버스 번호">{busNumbers.map((number, numberIndex) => <span key={`${number}-${numberIndex}`}>{number}</span>)}</div>}
+                              {busInfo.length > 0 && <div className="last-train-bus-numbers" aria-label="이용 가능한 버스 번호">{busInfo.map((bus, numberIndex) => <span className={`last-train-bus-number last-train-bus-number-${bus.kind}`} key={`${bus.number}-${numberIndex}`}>{bus.number}</span>)}</div>}
                               {isActive && <div className="last-train-horizontal-tooltip">
                                 <strong>{modeLabel(segment.type)} · {formatDuration(segment.timeSeconds)}</strong>
                                 {segment.guidance && <p>{segment.guidance}</p>}
