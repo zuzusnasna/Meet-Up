@@ -167,7 +167,7 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
         : String(vehicle?.type || "").trim();
       const routeLabel = (name + " " + type).trim();
       return /심야/i.test(routeLabel)
-        || /(?:^|\s)N\s?\d{1,4}(?:$|\s)/i.test(name);
+        || /(?:^|[\s(])N\s?\d{1,4}(?:번)?(?:$|[\s),])/i.test(name);
     });
   };
 
