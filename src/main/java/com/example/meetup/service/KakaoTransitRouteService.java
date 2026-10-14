@@ -24,150 +24,116 @@ public class KakaoTransitRouteService {
     @Value("${kakao.rest-api-key}")
     private String restApiKey;
 
-    private final TransitService transitService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
-     * Returns homeward public-transit routes: meeting place -> participant origin.
-     * Kakao supplies route/transfer structure; TAGO is used only for subway timetable checks.
+     * 약속장소에서 사용자의 출발지까지 카카오 대중교통 경로를 조회한다.
+     * 막차/시간표 조회는 여기서 하지 않고, 우선 경로와 환승 구간만 반환한다.
      */
     public Map<String, Object> findReturnRoutes(
             double meetingLatitude, double meetingLongitude,
             double originLatitude, double originLongitude) {
 
-        JsonNode root = requestRoutes(meetingLongitude, meetingLatitude, originLongitude, originLatitude);
+        JsonNode root = requestRoutes(
+                meetingLongitude, meetingLatitude,
+                originLongitude, originLatitude);
+
         Map<String, Object> result = new LinkedHashMap<>();
-        String status = text(root, "status");
-        result.put("status", status);
         result.put("origin", point("사용자 출발지", originLatitude, originLongitude));
         result.put("meetingPlace", point("약속장소", meetingLatitude, meetingLongitude));
 
-        if (!"OK".equalsIgnoreCase(status)) {
-            result.put("message", "카카오 대중교통 경로를 찾지 못했습니다: " + (status.isBlank() ? "응답 상태 없음" : status));
-            result.put("routes", List.of());
+        JsonNode routes = root.path("routes");
+        List<Map<String, Object>> routeList = new ArrayList<>();
+
+        if (!routes.isArray()) {
+            result.put("routes", routeList);
+            result.put("message", "카카오에서 대중교통 경로를 찾지 못했습니다.");
             return result;
         }
 
-        JsonNode routeNodes = root.path("routes");
-        List<Map<String, Object>> routes = new ArrayList<>();
-        if (routeNodes.isArray()) {
-            for (JsonNode routeNode : routeNodes) {
-                Map<String, Object> route = new LinkedHashMap<>();
-                JsonNode props = routeNode.path("properties");
-                route.put("type", text(props, "type"));
-                route.put("totalDistanceMeters", number(props, "totalDistance"));
-                route.put("totalTimeSeconds", number(props, "totalTime"));
-                route.put("transferCount", number(props, "transfers"));
+        for (JsonNode routeNode : routes) {
+            Map<String, Object> route = new LinkedHashMap<>();
+            JsonNode properties = routeNode.path("properties");
 
-                List<Map<String, Object>> segments = new ArrayList<>();
-                JsonNode steps = routeNode.path("steps");
-                if (steps.isArray()) {
-                    for (JsonNode step : steps) {
-                        segments.add(parseSegment(step));
-                    }
+            route.put("type", text(properties, "type"));
+            route.put("totalDistanceMeters", number(properties, "totalDistance"));
+            route.put("totalTimeSeconds", number(properties, "totalTime"));
+            route.put("transferCount", number(properties, "transfers"));
+
+            List<Map<String, Object>> segments = new ArrayList<>();
+            JsonNode steps = routeNode.path("steps");
+
+            if (steps.isArray()) {
+                for (JsonNode step : steps) {
+                    segments.add(parseSegment(step));
                 }
-                route.put("segments", segments);
-                routes.add(route);
             }
+
+            route.put("segments", segments);
+            routeList.add(route);
         }
-        result.put("routes", routes);
-        result.put("message", "카카오 대중교통 경로와 환승 구간을 조회했습니다. 지하철은 TAGO 시간표 조회를 시도하고, 버스 막차는 별도 운행시간표 데이터가 없어 확정 표시하지 않습니다.");
+
+        result.put("routes", routeList);
+        result.put("message", "약속장소에서 출발지까지의 대중교통 경로를 조회했습니다.");
         return result;
     }
 
     private Map<String, Object> parseSegment(JsonNode step) {
-        JsonNode props = step.path("properties");
-        String type = text(props, "type");
+        JsonNode properties = step.path("properties");
         Map<String, Object> segment = new LinkedHashMap<>();
-        segment.put("type", type);
-        segment.put("guidance", text(props, "guidance"));
-        segment.put("distanceMeters", number(props, "distance"));
-        segment.put("timeSeconds", number(props, "time"));
+
+        segment.put("type", text(properties, "type"));
+        segment.put("guidance", text(properties, "guidance"));
+        segment.put("distanceMeters", number(properties, "distance"));
+        segment.put("timeSeconds", number(properties, "time"));
 
         List<String> stops = new ArrayList<>();
-        JsonNode stopNodes = props.path("stops");
+        JsonNode stopNodes = properties.path("stops");
         if (stopNodes.isArray()) {
             for (JsonNode stop : stopNodes) {
                 String name = text(stop, "name");
-                if (!name.isBlank() && (stops.isEmpty() || !stops.get(stops.size() - 1).equals(name))) {
+                if (!name.isBlank() && (stops.isEmpty()
+                        || !stops.get(stops.size() - 1).equals(name))) {
                     stops.add(name);
                 }
             }
         }
         segment.put("stops", stops);
 
-        List<String> vehicles = new ArrayList<>();
-        JsonNode vehicleNodes = props.path("vehicles");
+        List<Map<String, Object>> vehicles = new ArrayList<>();
+        JsonNode vehicleNodes = properties.path("vehicles");
         if (vehicleNodes.isArray()) {
             for (JsonNode vehicle : vehicleNodes) {
-                String name = text(vehicle, "name");
-                String vehicleType = text(vehicle, "type");
-                String display = vehicleType.isBlank() ? name : vehicleType + " " + name;
-                if (!display.isBlank() && !vehicles.contains(display)) vehicles.add(display);
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("name", text(vehicle, "name"));
+                item.put("type", text(vehicle, "type"));
+                vehicles.add(item);
             }
         }
         segment.put("vehicles", vehicles);
 
+        // 경로 단계 자체의 좌표도 함께 반환해 프론트에서 지도에 표시할 수 있게 한다.
+        List<List<Double>> path = new ArrayList<>();
         JsonNode points = step.path("path").path("points");
-        if ("SUBWAY".equalsIgnoreCase(type)) {
-            Map<String, Object> lastTrain = findSegmentLastTrain(points);
-            segment.put("lastTrain", lastTrain);
-        } else if ("BUS".equalsIgnoreCase(type)) {
-            Map<String, Object> lastBus = new LinkedHashMap<>();
-            lastBus.put("status", "TIMETABLE_UNAVAILABLE");
-            lastBus.put("message", "현재 연결된 버스 API는 실시간 도착정보만 제공해 이 구간의 막차 시각을 확정할 수 없습니다.");
-            segment.put("lastBus", lastBus);
+        if (points.isArray()) {
+            for (JsonNode point : points) {
+                if (point.isArray() && point.size() >= 2) {
+                    List<Double> coordinate = new ArrayList<>();
+                    coordinate.add(point.get(0).asDouble());
+                    coordinate.add(point.get(1).asDouble());
+                    path.add(coordinate);
+                }
+            }
         }
+        segment.put("path", path);
+
         return segment;
     }
 
-    private Map<String, Object> findSegmentLastTrain(JsonNode points) {
-        Map<String, Object> unavailable = new LinkedHashMap<>();
-        unavailable.put("status", "UNAVAILABLE");
-        unavailable.put("message", "이 지하철 구간의 시간표를 확인하지 못했습니다.");
+    private JsonNode requestRoutes(
+            double startLongitude, double startLatitude,
+            double endLongitude, double endLatitude) {
 
-        if (!points.isArray() || points.size() < 2
-                || !points.get(0).isArray() || points.get(0).size() < 2
-                || !points.get(points.size() - 1).isArray()
-                || points.get(points.size() - 1).size() < 2) {
-            return unavailable;
-        }
-
-        JsonNode start = points.get(0);
-        JsonNode end = points.get(points.size() - 1);
-        double startLongitude = start.get(0).asDouble(Double.NaN);
-        double startLatitude = start.get(1).asDouble(Double.NaN);
-        double endLongitude = end.get(0).asDouble(Double.NaN);
-        double endLatitude = end.get(1).asDouble(Double.NaN);
-        if (!Double.isFinite(startLatitude) || !Double.isFinite(startLongitude)
-                || !Double.isFinite(endLatitude) || !Double.isFinite(endLongitude)) {
-            return unavailable;
-        }
-
-        try {
-            // Route is meeting -> home. TransitService compares a departure station
-            // against the train terminal, so its origin/destination arguments are reversed here.
-            Map<String, Object> schedule = transitService.findLastTrain(
-                    endLatitude, endLongitude, startLatitude, startLongitude, null);
-            Object lastDeparture = schedule.get("lastDeparture");
-            if ("OK".equals(schedule.get("status")) && lastDeparture != null) {
-                Map<String, Object> response = new LinkedHashMap<>();
-                response.put("status", "OK");
-                response.put("lastDeparture", lastDeparture);
-                response.put("message", "TAGO 역 시간표에서 확인한 직통 운행 후보입니다. 실제 환승 가능 여부는 보장하지 않습니다.");
-                return response;
-            }
-            unavailable.put("message", schedule.getOrDefault("message", unavailable.get("message")));
-            unavailable.put("lookupStatus", schedule.get("status"));
-            return unavailable;
-        } catch (RuntimeException exception) {
-            unavailable.put("message", "지하철 시간표 조회에 실패했습니다. 잠시 후 다시 시도하세요.");
-            return unavailable;
-        }
-    }
-
-    private JsonNode requestRoutes(double startLongitude, double startLatitude,
-                                   double endLongitude, double endLatitude) {
         HttpURLConnection connection = null;
         try {
             String url = "https://dapi.kakao.com/v2/routing/publictraffic"
@@ -177,28 +143,43 @@ public class KakaoTransitRouteService {
                     + "&end_y=" + encode(Double.toString(endLatitude))
                     + "&s_name=" + encode("약속장소")
                     + "&e_name=" + encode("사용자 출발지");
+
             connection = (HttpURLConnection) URI.create(url).toURL().openConnection();
             connection.setRequestMethod("GET");
             connection.setConnectTimeout(5000);
             connection.setReadTimeout(10000);
-            connection.setRequestProperty("Authorization", "KakaoAK " + (restApiKey == null ? "" : restApiKey.trim()));
+            connection.setRequestProperty(
+                    "Authorization",
+                    "KakaoAK " + (restApiKey == null ? "" : restApiKey.trim()));
             connection.setRequestProperty("Accept", "application/json");
+
             int status = connection.getResponseCode();
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(
-                    status >= 200 && status < 300 ? connection.getInputStream() : connection.getErrorStream(),
+                    status >= 200 && status < 300
+                            ? connection.getInputStream()
+                            : connection.getErrorStream(),
                     StandardCharsets.UTF_8))) {
+
                 StringBuilder body = new StringBuilder();
                 String line;
-                while ((line = reader.readLine()) != null) body.append(line);
-                if (status < 200 || status >= 300) {
-                    throw new IllegalStateException("Kakao public transit API HTTP " + status + ": " + body);
+                while ((line = reader.readLine()) != null) {
+                    body.append(line);
                 }
+
+                if (status < 200 || status >= 300) {
+                    throw new IllegalStateException(
+                            "Kakao public transit API HTTP " + status + ": " + body);
+                }
+
                 return objectMapper.readTree(body.toString());
             }
         } catch (Exception e) {
-            throw new IllegalStateException("카카오 대중교통 경로 API 호출에 실패했습니다. REST API 키와 카카오맵 API 사용 설정을 확인하세요.", e);
+            throw new IllegalStateException(
+                    "카카오 대중교통 경로 API 호출에 실패했습니다.", e);
         } finally {
-            if (connection != null) connection.disconnect();
+            if (connection != null) {
+                connection.disconnect();
+            }
         }
     }
 
@@ -221,6 +202,8 @@ public class KakaoTransitRouteService {
     }
 
     private String encode(String value) {
-        return URLEncoder.encode(value == null ? "" : value, StandardCharsets.UTF_8);
+        return URLEncoder.encode(
+                value == null ? "" : value,
+                StandardCharsets.UTF_8);
     }
 }
