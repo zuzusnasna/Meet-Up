@@ -208,7 +208,6 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
                     {routes.length === 0 ? (
                       <div className="transit-routes-empty">{result?.message || "환승 경로를 찾지 못했습니다."}</div>
                     ) : routes.map((route, routeIndex) => {
-                      const lastTrain = formatLastTrain(route);
                       return (
                         <div className="transit-routes-option" key={routeIndex}>
                           <div className="transit-routes-summary">
