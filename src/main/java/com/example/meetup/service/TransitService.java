@@ -196,8 +196,10 @@ public class TransitService {
                         if (time.equals("000000") || !isSameStation(terminal, normalizeStationName(leg.endStation()))) continue;
                         if (!scheduleRoute.isBlank() && !station.routeName().isBlank()
                                 && !routesMatch(scheduleRoute, station.routeName())) continue;
+                        int departureMinutes = scheduleMinutes(time);
+                        if (departureMinutes < 0) continue;
                         candidates.add(new TrainCandidate(
-                                scheduleMinutes(time), schedule, station, leg));
+                                departureMinutes, schedule, station, leg));
                     }
                 }
             }
@@ -230,6 +232,11 @@ public class TransitService {
                 }
                 int earliestDeparture = currentArrival + betweenMinutes;
                 TrainCandidate next = candidatesByLeg.get(legIndex).stream()
+                        .map(candidate -> {
+                            int departure = candidate.minutes();
+                            if (departure < earliestDeparture) departure += 1440;
+                            return new TrainCandidate(departure, candidate.schedule(), candidate.station(), candidate.leg());
+                        })
                         .filter(candidate -> candidate.minutes() >= earliestDeparture)
                         .min(Comparator.comparingInt(TrainCandidate::minutes))
                         .orElse(null);
@@ -260,6 +267,7 @@ public class TransitService {
                 "destinationStationName", "endStationName", "terminalStationName", "arrivalStationName"));
         departure.put("routeName", firstText(schedule, "subwayRouteName", "subwayRouteNm", "routeName", "routeNm"));
         departure.put("direction", firstText(schedule, "upDownTypeCode", "upDownTypeName"));
+        departure.put("routeSegmentIndex", selectedLast.leg().segmentIndex());
         departure.put("originStationName", selectedLast.leg().startStation());
         departure.put("originTagoStationId", selectedLast.station().id());
         departure.put("destinationStationNameOnRoute", selectedLast.leg().endStation());
