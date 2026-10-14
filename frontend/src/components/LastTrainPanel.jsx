@@ -30,20 +30,49 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
           const data = await response.json();
           if (!response.ok) throw new Error(data.message || "귀가 경로 조회에 실패했습니다.");
 
-          // 각 카카오 귀가 경로별 지하철 구간을 보내 시간표와 환승 연결을 따로 검증한다.
-          const routesWithSchedules = await Promise.all((Array.isArray(data.routes) ? data.routes : []).map(async (route) => {
+          // 심야버스가 포함된 경로는 막차 계산이 부정확해질 수 있어 결과 목록에서 제외한다.
+          const eligibleRoutes = (Array.isArray(data.routes) ? data.routes : [])
+            .filter((route) => !(Array.isArray(route.segments) ? route.segments : []).some(isNightBus));
+
+          // 지하철 구간이 없는 경로는 시간표 API에 보내지 않고, 사유를 명확하게 표시한다.
+          const routesWithSchedules = await Promise.all(eligibleRoutes.map(async (route) => {
             try {
               const routeSegments = Array.isArray(route.segments) ? route.segments : [];
-              const nightBusIndex = routeSegments.findIndex(isNightBus);
-              const validatedSegments = nightBusIndex >= 0
-                ? routeSegments.slice(0, nightBusIndex)
-                : routeSegments;
+              const subwaySegments = routeSegments.filter((segment) =>
+                String(segment?.type || "").toUpperCase() === "SUBWAY");
+              const hasVerifiableSubway = subwaySegments.some((segment) =>
+                Array.isArray(segment.stops)
+                && segment.stops.length >= 2
+                && String(segment.stops[0] || "").trim()
+                && String(segment.stops[segment.stops.length - 1] || "").trim());
+
+              if (subwaySegments.length === 0) {
+                return {
+                  ...route,
+                  lastTrain: {
+                    status: "NO_SUBWAY_SEGMENT",
+                    message: "이 경로에는 시간표를 검증할 지하철 구간이 없어 막차를 확인할 수 없습니다.",
+                    lastDeparture: null,
+                  },
+                };
+              }
+              if (!hasVerifiableSubway) {
+                return {
+                  ...route,
+                  lastTrain: {
+                    status: "INVALID_SUBWAY_SEGMENT",
+                    message: "지하철 구간은 있지만 역 정보가 부족해 시간표를 검증할 수 없습니다.",
+                    lastDeparture: null,
+                  },
+                };
+              }
+
               const scheduleParams = new URLSearchParams({
                 originLatitude: String(finalPlace.latitude),
                 originLongitude: String(finalPlace.longitude),
                 destinationLatitude: String(location.latitude),
                 destinationLongitude: String(location.longitude),
-                routeSegments: JSON.stringify(validatedSegments.map((segment) => ({
+                routeSegments: JSON.stringify(routeSegments.map((segment) => ({
                   type: segment.type,
                   timeSeconds: segment.timeSeconds,
                   stops: segment.stops || [],
@@ -59,7 +88,11 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
               return { ...route, lastTrain: null };
             }
           }));
-          return [userId, { ...data, routes: routesWithSchedules }];
+          const excludedNightBusCount = (Array.isArray(data.routes) ? data.routes : []).length - eligibleRoutes.length;
+          const message = eligibleRoutes.length === 0 && excludedNightBusCount > 0
+            ? "조회된 경로에 심야버스가 포함되어 있어 해당 경로를 제외했습니다."
+            : data.message;
+          return [userId, { ...data, message, routes: routesWithSchedules }];
         } catch (error) {
           console.error(error);
           return [userId, { status: "ERROR", message: error.message || "귀가 경로를 불러오지 못했습니다.", routes: [] }];
@@ -197,7 +230,7 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
         <div><span className="last-train-eyebrow">RETURN TRIP</span><h2>막차 안내</h2><p>약속장소에서 참여자별 출발지로 돌아가는 대중교통 경로를 확인합니다.</p></div>
         <div className="last-train-destination"><span>최종 약속장소</span><strong>{finalPlace?.placeName || "미정"}</strong><small>{finalPlace?.address || ""}</small></div>
       </div>
-      <div className="last-train-notice" role="note"><strong>조회 기준</strong><p>약속장소 → 출발지 방향의 경로를 빠른 순서로 최대 3개 표시합니다. 막차 마감은 심야버스를 제외하고 참고 시간표에서 이전 구간 소요시간과 환승 여유 10분을 차감한 추정치입니다. 구간별 실제 막차 연결을 보장하지는 않습니다. 각 이동 구간에 마우스를 올리면 상세 경로가 표시되며, 클릭하면 고정됩니다.</p></div>
+      <div className="last-train-notice" role="note"><strong>조회 기준</strong><p>약속장소 → 출발지 방향의 경로를 빠른 순서로 최대 3개 표시합니다. 심야버스가 포함된 경로는 제외하며, 지하철 구간이 없는 경로는 막차 시간표를 검증하지 않습니다. 막차 마감은 참고 시간표에서 이전 구간 소요시간과 환승 여유 10분을 차감한 추정치이며, 실제 운행을 보장하지 않습니다. 각 이동 구간에 마우스를 올리면 상세 경로가 표시되며, 클릭하면 고정됩니다.</p></div>
       {loadingResults && <div className="last-train-loading">귀가 경로와 환승 구간을 조회하고 있습니다...</div>}
       {participants.length === 0 ? <div className="last-train-empty">참여자 정보를 불러오지 못했습니다.</div> : (
         <div className="last-train-list">
