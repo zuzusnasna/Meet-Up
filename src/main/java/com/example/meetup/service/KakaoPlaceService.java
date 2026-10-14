@@ -16,7 +16,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -33,7 +32,7 @@ public class KakaoPlaceService {
 
     public KakaoPlaceResponse searchPlace(String query) {
         String normalizedQuery = query == null ? "" : query.trim();
-        String cacheKey = "kakao:place:keyword:" + normalizedQuery;
+        String cacheKey = redisCacheService.versionedKey("kakao:place:keyword", normalizedQuery);
         KakaoPlaceResponse cached = redisCacheService.get(cacheKey, KakaoPlaceResponse.class);
         if (cached != null) return cached;
 
@@ -44,7 +43,8 @@ public class KakaoPlaceService {
     }
 
     public KakaoPlaceResponse searchNearbyRestaurants(double latitude, double longitude) {
-        String cacheKey = "kakao:restaurant:" + coordinate(latitude) + ":" + coordinate(longitude);
+        String cacheKey = redisCacheService.versionedKey(
+                "kakao:restaurant", coordinate(latitude), coordinate(longitude));
         KakaoPlaceResponse cached = redisCacheService.get(cacheKey, KakaoPlaceResponse.class);
         if (cached != null) return cached;
 
@@ -57,7 +57,8 @@ public class KakaoPlaceService {
     }
 
     public Map<String, Object> searchNearbySubwayStations(double latitude, double longitude) {
-        String cacheKey = "kakao:subway:" + coordinate(latitude) + ":" + coordinate(longitude);
+        String cacheKey = redisCacheService.versionedKey(
+                "kakao:subway", coordinate(latitude), coordinate(longitude));
         Map<String, Object> cached = redisCacheService.get(cacheKey, MAP_TYPE);
         if (cached != null) return cached;
 
@@ -119,6 +120,6 @@ public class KakaoPlaceService {
     }
 
     private String coordinate(double value) {
-        return String.format(Locale.ROOT, "%.4f", value);
+        return String.format(java.util.Locale.ROOT, "%.4f", value);
     }
 }
