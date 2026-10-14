@@ -21,6 +21,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +32,16 @@ public class TransitService {
 
     private final KakaoPlaceService kakaoPlaceService;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    // TAGO 요청을 프로세스 전체에서 직렬화하고 동일 URL 응답은 캐싱해 순간적인 요청 폭주를 막는다.
+    private final Object tagoRequestLock = new Object();
+    private final Map<String, CachedJson> tagoResponseCache = new ConcurrentHashMap<>();
+    private long lastTagoRequestAtMillis = 0L;
+    private static final long TAGO_MIN_REQUEST_INTERVAL_MS = 400L;
+    private static final long TAGO_STATION_CACHE_TTL_MS = 24L * 60 * 60 * 1000;
+    private static final long TAGO_SCHEDULE_CACHE_TTL_MS = 6L * 60 * 60 * 1000;
+
+    private record CachedJson(JsonNode body, long expiresAtMillis) {}
 
     public Map<String, Object> findLastTrain(double originLatitude, double originLongitude,
                                              double destinationLatitude, double destinationLongitude,
@@ -415,27 +426,60 @@ public class TransitService {
     }
 
     private JsonNode requestJson(String url) {
-        HttpURLConnection connection = null;
-        try {
-            connection = (HttpURLConnection) URI.create(url).toURL().openConnection();
-            connection.setRequestMethod("GET");
-            connection.setConnectTimeout(5000);
-            connection.setReadTimeout(8000);
-            connection.setRequestProperty("Accept", "application/json");
-            int status = connection.getResponseCode();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(
-                    status >= 200 && status < 300 ? connection.getInputStream() : connection.getErrorStream(),
-                    StandardCharsets.UTF_8))) {
-                StringBuilder body = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) body.append(line);
-                if (status < 200 || status >= 300) throw new IllegalStateException("TAGO API HTTP " + status + " - " + body);
-                return objectMapper.readTree(body.toString());
+        synchronized (tagoRequestLock) {
+            long now = System.currentTimeMillis();
+            CachedJson cached = tagoResponseCache.get(url);
+            if (cached != null) {
+                if (cached.expiresAtMillis() > now) return cached.body().deepCopy();
+                tagoResponseCache.remove(url, cached);
             }
-        } catch (Exception e) {
-            throw new IllegalStateException("TAGO 지하철 API 요청에 실패했습니다. 인증키 승인 여부와 API 응답을 확인하세요.", e);
-        } finally {
-            if (connection != null) connection.disconnect();
+
+            for (int attempt = 0; attempt < 3; attempt++) {
+                HttpURLConnection connection = null;
+                try {
+                    long waitMillis = TAGO_MIN_REQUEST_INTERVAL_MS - (System.currentTimeMillis() - lastTagoRequestAtMillis);
+                    if (waitMillis > 0) Thread.sleep(waitMillis);
+                    lastTagoRequestAtMillis = System.currentTimeMillis();
+
+                    connection = (HttpURLConnection) URI.create(url).toURL().openConnection();
+                    connection.setRequestMethod("GET");
+                    connection.setConnectTimeout(5000);
+                    connection.setReadTimeout(8000);
+                    connection.setRequestProperty("Accept", "application/json");
+                    int status = connection.getResponseCode();
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                            status >= 200 && status < 300 ? connection.getInputStream() : connection.getErrorStream(),
+                            StandardCharsets.UTF_8))) {
+                        StringBuilder body = new StringBuilder();
+                        String line;
+                        while ((line = reader.readLine()) != null) body.append(line);
+
+                        if (status == 429 && attempt < 2) {
+                            // 429는 즉시 재요청하지 않고 1초, 2초로 대기 시간을 늘린다.
+                            Thread.sleep(1000L * (attempt + 1));
+                            continue;
+                        }
+                        if (status < 200 || status >= 300) {
+                            throw new IllegalStateException("TAGO API HTTP " + status + " - " + body);
+                        }
+
+                        JsonNode json = objectMapper.readTree(body.toString());
+                        long ttl = url.contains("GetKwrdFndSubwaySttnList")
+                                ? TAGO_STATION_CACHE_TTL_MS
+                                : TAGO_SCHEDULE_CACHE_TTL_MS;
+                        tagoResponseCache.put(url, new CachedJson(json.deepCopy(), System.currentTimeMillis() + ttl));
+                        return json;
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException("TAGO API 요청 대기 중 인터럽트가 발생했습니다.", e);
+                } catch (Exception e) {
+                    throw new IllegalStateException("TAGO 지하철 API 요청에 실패했습니다. 인증키 승인 여부와 API 응답을 확인하세요.", e);
+                } finally {
+                    if (connection != null) connection.disconnect();
+                }
+            }
+            throw new IllegalStateException("TAGO API 요청 제한(HTTP 429)으로 재시도 횟수를 초과했습니다.");
         }
     }
 
