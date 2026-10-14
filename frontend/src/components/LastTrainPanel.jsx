@@ -93,7 +93,7 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
       return [vehicle?.name || "", vehicle?.type || ""].filter(Boolean).join(" ");
     }).join(" ");
     const text = `${vehicleText} ${segment.guidance || ""} ${(segment.stops || []).join(" ")}`;
-    return /심야|(?:^|\\s)N\\s?\\d{1,4}(?:\\s|$)/i.test(text);
+    return /심야|(?:^|\s)N\s?\d{1,4}(?:\s|$)/i.test(text);
   };
 
   const getLastDepartureDeadline = (route, lastTrain) => {
@@ -148,7 +148,7 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
         if (vehicle == null) return null;
         const text = typeof vehicle === "string" ? vehicle : [vehicle.type || "", vehicle.name || ""].filter(Boolean).join(" ");
         const number = typeof vehicle === "string" ? vehicle : vehicle.name || vehicle.type || "";
-        const normalized = text.replace(/\\s+/g, " ").trim();
+        const normalized = text.replace(/\s+/g, " ").trim();
         let kind = "normal";
         if (/마을/.test(normalized)) kind = "village";
         else if (/시외/.test(normalized)) kind = "intercity";
