@@ -135,6 +135,154 @@ public class TransitService {
         return result;
     }
 
+
+    /**
+     * 카카오가 반환한 특정 귀가 경로의 지하철 구간을 기준으로 시간표 연결을 검증한다.
+     * 직통 시간표를 찾지 못했다고 인근 역의 가장 늦은 시각을 대신 반환하지 않는다.
+     */
+    public Map<String, Object> findLastTrainForRoute(
+            double originLatitude, double originLongitude,
+            double destinationLatitude, double destinationLongitude,
+            String dayType, String routeSegmentsJson) {
+
+        String normalizedDayType = normalizeDayType(dayType);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("dayType", normalizedDayType);
+
+        JsonNode segments;
+        try {
+            segments = objectMapper.readTree(routeSegmentsJson == null ? "[]" : routeSegmentsJson);
+        } catch (Exception e) {
+            return failure(result, "INVALID_ROUTE", "귀가 경로 정보를 읽지 못했습니다.");
+        }
+        if (segments == null || !segments.isArray()) {
+            return failure(result, "INVALID_ROUTE", "귀가 경로 정보가 올바르지 않습니다.");
+        }
+
+        List<RouteLeg> legs = new ArrayList<>();
+        for (int i = 0; i < segments.size(); i++) {
+            JsonNode segment = segments.get(i);
+            if (!"SUBWAY".equalsIgnoreCase(firstText(segment, "type"))) continue;
+            JsonNode stops = segment.path("stops");
+            if (!stops.isArray() || stops.size() < 2) continue;
+            String start = stops.get(0).asText("");
+            String end = stops.get(stops.size() - 1).asText("");
+            if (start.isBlank() || end.isBlank()) continue;
+            int durationMinutes = Math.max(1, (int) Math.ceil(
+                    Math.max(0, segment.path("timeSeconds").asDouble(0)) / 60.0));
+            legs.add(new RouteLeg(i, start, end, durationMinutes));
+        }
+
+        if (legs.isEmpty()) {
+            return failure(result, "NO_SUBWAY_SEGMENT",
+                    "이 경로에서 시간표를 검증할 지하철 구간을 찾지 못했습니다.");
+        }
+
+        List<List<TrainCandidate>> candidatesByLeg = new ArrayList<>();
+        for (RouteLeg leg : legs) {
+            List<TagoStation> origins = resolveTagoStationsByName(leg.startStation());
+            List<TrainCandidate> candidates = new ArrayList<>();
+            for (TagoStation station : origins) {
+                for (String direction : List.of("U", "D")) {
+                    JsonNode schedules = fetchSchedules(station.id(), normalizedDayType, direction);
+                    for (JsonNode schedule : schedules) {
+                        String time = scheduleTime(schedule);
+                        String terminal = firstText(schedule,
+                                "endsubwaystationnm", "endSubwayStationNm",
+                                "destinationStationName", "endStationName", "terminalStationName",
+                                "arrivalStationName");
+                        String scheduleRoute = firstText(schedule,
+                                "subwayRouteName", "subwayRouteNm", "routeName", "routeNm");
+                        if (time.equals("000000") || !isSameStation(terminal, normalizeStationName(leg.endStation()))) continue;
+                        if (!scheduleRoute.isBlank() && !station.routeName().isBlank()
+                                && !routesMatch(scheduleRoute, station.routeName())) continue;
+                        candidates.add(new TrainCandidate(
+                                normalizedScheduleTime(time), schedule, station, leg));
+                    }
+                }
+            }
+            candidates.sort(Comparator.comparingInt(TrainCandidate::minutes));
+            candidatesByLeg.add(candidates);
+        }
+
+        if (candidatesByLeg.stream().anyMatch(List::isEmpty)) {
+            return failure(result, "ROUTE_SCHEDULE_NOT_FOUND",
+                    "귀가 경로의 지하철 구간 중 종착역과 연결되는 시간표를 찾지 못했습니다.");
+        }
+
+        List<TrainCandidate> firstLegCandidates = new ArrayList<>(candidatesByLeg.get(0));
+        firstLegCandidates.sort(Comparator.comparingInt(TrainCandidate::minutes).reversed());
+        TrainCandidate selectedFirst = null;
+        for (TrainCandidate first : firstLegCandidates) {
+            int currentArrival = first.minutes() + first.leg().durationMinutes();
+            boolean connected = true;
+            for (int legIndex = 1; legIndex < legs.size(); legIndex++) {
+                RouteLeg previousLeg = legs.get(legIndex - 1);
+                RouteLeg currentLeg = legs.get(legIndex);
+                int betweenMinutes = 0;
+                for (int segmentIndex = previousLeg.segmentIndex() + 1;
+                     segmentIndex < currentLeg.segmentIndex(); segmentIndex++) {
+                    JsonNode between = segments.get(segmentIndex);
+                    betweenMinutes += Math.max(0, (int) Math.ceil(
+                            between.path("timeSeconds").asDouble(0) / 60.0));
+                }
+                int earliestDeparture = currentArrival + betweenMinutes;
+                TrainCandidate next = candidatesByLeg.get(legIndex).stream()
+                        .filter(candidate -> candidate.minutes() >= earliestDeparture)
+                        .min(Comparator.comparingInt(TrainCandidate::minutes))
+                        .orElse(null);
+                if (next == null) {
+                    connected = false;
+                    break;
+                }
+                currentArrival = next.minutes() + currentLeg.durationMinutes();
+            }
+            if (connected) {
+                selectedFirst = first;
+                break;
+            }
+        }
+
+        if (selectedFirst == null) {
+            return failure(result, "NO_CONNECTED_LAST_TRAIN",
+                    "각 지하철 구간의 시간표를 연결할 수 있는 막차 조합을 찾지 못했습니다.");
+        }
+
+        JsonNode schedule = selectedFirst.schedule();
+        Map<String, Object> departure = new LinkedHashMap<>();
+        departure.put("departureTime", scheduleTime(schedule));
+        departure.put("destinationStationName", firstText(schedule,
+                "endsubwaystationnm", "endSubwayStationNm",
+                "destinationStationName", "endStationName", "terminalStationName", "arrivalStationName"));
+        departure.put("routeName", firstText(schedule, "subwayRouteName", "subwayRouteNm", "routeName", "routeNm"));
+        departure.put("direction", firstText(schedule, "upDownTypeCode", "upDownTypeName"));
+        departure.put("originStationName", selectedFirst.leg().startStation());
+        departure.put("originTagoStationId", selectedFirst.station().id());
+        departure.put("destinationStationNameOnRoute", selectedFirst.leg().endStation());
+
+        result.put("status", "OK");
+        result.put("message", "귀가 경로의 지하철 구간별 시간표와 환승 연결을 확인한 출발 시각입니다. 실제 운행 지연과 역 내 이동시간에 따라 달라질 수 있습니다.");
+        result.put("lastDeparture", departure);
+        return result;
+    }
+
+    private List<TagoStation> resolveTagoStationsByName(String stationName) {
+        String target = normalizeStationName(stationName);
+        Map<String, TagoStation> unique = new LinkedHashMap<>();
+        for (String query : List.of(target, target + "역")) {
+            JsonNode root = requestJson(
+                    "https://apis.data.go.kr/1613000/SubwayInfo/GetKwrdFndSubwaySttnList"
+                            + "?serviceKey=" + encodedKey()
+                            + "&subwayStationName=" + encode(query)
+                            + "&pageNo=1&numOfRows=100&_type=json");
+            collectTagoStations(root, target, unique);
+        }
+        return new ArrayList<>(unique.values());
+    }
+
+    private record RouteLeg(int segmentIndex, String startStation, String endStation, int durationMinutes) {}
+    private record TrainCandidate(int minutes, JsonNode schedule, TagoStation station, RouteLeg leg) {}
+
     private Map<String, Object> failure(Map<String, Object> result, String status, String message) {
         result.put("status", status);
         result.put("message", message);
