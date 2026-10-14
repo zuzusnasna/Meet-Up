@@ -177,7 +177,11 @@ public class TransitService {
                                 "arrivalStationName");
                         String scheduleRoute = firstText(schedule,
                                 "subwayRouteName", "subwayRouteNm", "routeName", "routeNm");
-                        if (!hasScheduleTime(schedule) || !isSameStation(terminal, normalizeStationName(leg.endStation()))) continue;
+                        // TAGO 역별 시간표 응답은 종착역 필드를 제공하지 않는 경우가 있다.
+                        // 종착역 값이 응답에 있을 때만 목적 구간과 비교하고, 없으면 출발역/호선/출발시각으로 후보를 검증한다.
+                        if (!hasScheduleTime(schedule)) continue;
+                        if (!terminal.isBlank()
+                                && !isSameStation(terminal, normalizeStationName(leg.endStation()))) continue;
                         if (!scheduleRoute.isBlank() && !station.routeName().isBlank()
                                 && !routesMatch(scheduleRoute, station.routeName())) continue;
                         int departureMinutes = scheduleMinutes(time);
@@ -257,7 +261,7 @@ public class TransitService {
         departure.put("destinationStationNameOnRoute", selectedLast.leg().endStation());
 
         result.put("status", "OK");
-        result.put("message", "귀가 경로의 지하철 구간별 시간표와 환승 연결을 확인한 출발 시각입니다. 실제 운행 지연과 역 내 이동시간에 따라 달라질 수 있습니다.");
+        result.put("message", "귀가 경로의 지하철 구간별 출발 시각과 환승 연결을 기준으로 계산한 후보입니다. TAGO 응답에 종착역 정보가 있는 경우 목적 구간과 대조했으며, 실제 운행 지연과 역 내 이동시간에 따라 달라질 수 있습니다.");
         result.put("lastDeparture", departure);
         return result;
     }
