@@ -7,233 +7,25 @@
   padding: 8px 4px;
 }
 
-.last-train-route-endpoint {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  min-width: 0;
-  color: #303541;
-  font-size: 12px;
-}
+.last-train-route-endpoint { display:flex; align-items:center; gap:9px; min-width:0; color:#303541; font-size:12px; }
+.last-train-route-endpoint:last-child { justify-content:flex-end; text-align:right; }
+.last-train-route-endpoint strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.last-train-route-dot { width:11px; height:11px; flex:0 0 11px; border-radius:50%; background:#fff; border:3px solid #5b5ce2; box-shadow:0 0 0 4px rgba(91,92,226,.09); }
+.last-train-route-dot-end { border-color:#596273; box-shadow:0 0 0 4px rgba(89,98,115,.08); }
+.last-train-route-track { display:flex; min-width:0; align-items:center; gap:4px; }
+.last-train-visual-segment { position:relative; display:flex; min-width:0; flex:1 1 0; align-items:center; justify-content:center; min-height:74px; }
+.last-train-visual-line { position:absolute; top:50%; right:0; left:0; height:7px; transform:translateY(-50%); border-radius:999px; background:#b7bdc8; }
+.last-train-segment-walking .last-train-visual-line { height:3px; background:repeating-linear-gradient(90deg,#aeb4be 0 7px,transparent 7px 12px); }
+.last-train-segment-bus .last-train-visual-line { background:#3f7ee8; box-shadow:0 2px 8px rgba(63,126,232,.22); }
+.last-train-segment-subway .last-train-visual-line { background:#6d737d; }
+.last-train-line-1 .last-train-visual-line{background:#0052a4}.last-train-line-2 .last-train-visual-line{background:#00a84f}.last-train-line-3 .last-train-visual-line{background:#ef7c1c}.last-train-line-4 .last-train-visual-line{background:#00a4e4}.last-train-line-5 .last-train-visual-line{background:#996cac}.last-train-line-6 .last-train-visual-line{background:#cd7c2f}.last-train-line-7 .last-train-visual-line{background:#747f00}.last-train-line-8 .last-train-visual-line{background:#e6186c}.last-train-line-9 .last-train-visual-line{background:#bdb092}.last-train-line-default .last-train-visual-line{background:#69717d}
+.last-train-visual-node { position:absolute; z-index:2; top:50%; left:50%; width:15px; height:15px; border:3px solid #fff; border-radius:50%; background:currentColor; box-shadow:0 1px 6px rgba(25,31,52,.2); transform:translate(-50%,-50%); }
+.last-train-segment-walking{color:#9aa1ae}.last-train-segment-bus{color:#3f7ee8}.last-train-segment-subway{color:#69717d}.last-train-line-1{color:#0052a4}.last-train-line-2{color:#00a84f}.last-train-line-3{color:#ef7c1c}.last-train-line-4{color:#00a4e4}.last-train-line-5{color:#996cac}.last-train-line-6{color:#cd7c2f}.last-train-line-7{color:#747f00}.last-train-line-8{color:#e6186c}.last-train-line-9{color:#bdb092}
+.last-train-visual-content { position:relative; z-index:3; width:min(100%,150px); padding:7px 9px; border:1px solid rgba(255,255,255,.92); border-radius:10px; background:rgba(255,255,255,.94); box-shadow:0 4px 12px rgba(25,31,52,.08); text-align:center; }
+.last-train-visual-label{display:flex;align-items:center;justify-content:center;gap:5px;font-size:10px;color:#6c7482}.last-train-visual-label strong{color:#252a34;font-size:10px}.last-train-visual-vehicle{margin-top:2px;overflow:hidden;color:#313743;font-size:11px;font-weight:800;text-overflow:ellipsis;white-space:nowrap}.last-train-visual-stops{display:flex;justify-content:center;gap:3px;margin-top:4px;overflow:hidden;color:#8a919e;font-size:9px}.last-train-visual-stops span{overflow:hidden;max-width:58px;text-overflow:ellipsis;white-space:nowrap}.last-train-visual-stops span+span::before{content:"·";margin-right:3px;color:#b0b5be}.last-train-visual-note{position:absolute;top:calc(50% + 19px);color:#8a919e;font-size:9px;white-space:nowrap}.last-train-segment-details{display:flex;flex-direction:column;gap:6px;margin-top:10px}.last-train-segment-detail{padding:9px 11px;border:1px solid #eef0f4;border-radius:10px;background:#fafbfc}.last-train-segment-detail .last-train-segment-heading{display:flex;justify-content:space-between;gap:10px;margin-bottom:3px}.last-train-segment-detail p{margin:3px 0 0;color:#7d8594;font-size:10px;line-height:1.5}
 
-.last-train-route-endpoint:last-child {
-  justify-content: flex-end;
-  text-align: right;
-}
+/* Horizontal transit timeline */
+.last-train-horizontal-route{display:grid;grid-template-columns:minmax(100px,155px) minmax(0,1fr) minmax(100px,155px);align-items:center;gap:14px;margin-top:18px;padding:10px 4px 22px;overflow:visible}.last-train-horizontal-track{display:flex;align-items:center;min-width:0;height:82px}.last-train-horizontal-segment{position:relative;flex:1;min-width:70px;height:82px;cursor:pointer;outline:none}.last-train-horizontal-line{position:absolute;left:0;right:0;top:40px;height:7px;border-radius:999px;background:#aeb4bf}.last-train-horizontal-label{position:absolute;left:50%;top:0;display:flex;align-items:center;gap:5px;transform:translateX(-50%);white-space:nowrap;color:#667080;font-size:11px}.last-train-horizontal-label strong{font-size:11px}.last-train-horizontal-vehicle{position:absolute;left:50%;top:55px;max-width:100%;overflow:hidden;transform:translateX(-50%);white-space:nowrap;text-overflow:ellipsis;color:#596273;font-size:10px;font-weight:700}.last-train-segment-walking .last-train-horizontal-line{height:4px;background:repeating-linear-gradient(90deg,#aeb4bf 0 8px,transparent 8px 13px)}.last-train-segment-bus .last-train-horizontal-line{background:#3b82f6}.last-train-segment-subway .last-train-horizontal-line{background:#777}.last-train-line-1 .last-train-horizontal-line{background:#0052a4}.last-train-line-2 .last-train-horizontal-line{background:#00a84f}.last-train-line-3 .last-train-horizontal-line{background:#ef7c1c}.last-train-line-4 .last-train-horizontal-line{background:#00a4e4}.last-train-line-5 .last-train-horizontal-line{background:#996cac}.last-train-line-6 .last-train-horizontal-line{background:#cd7c2f}.last-train-line-7 .last-train-horizontal-line{background:#747f00}.last-train-line-8 .last-train-horizontal-line{background:#e6186c}.last-train-line-9 .last-train-horizontal-line{background:#bdb092}.last-train-line-10 .last-train-horizontal-line{background:#9b9b9b}.last-train-horizontal-segment:hover .last-train-horizontal-line,.last-train-horizontal-segment:focus-visible .last-train-horizontal-line{height:9px;filter:brightness(.92)}
+.last-train-horizontal-tooltip{position:absolute;left:50%;bottom:calc(100% - 2px);z-index:30;width:280px;max-height:300px;overflow:auto;padding:13px 14px;border:1px solid #e1e4eb;border-radius:12px;background:#fff;box-shadow:0 15px 35px rgba(25,31,52,.18);opacity:0;pointer-events:none;transform:translate(-50%,8px);transition:opacity .15s ease,transform .15s ease}.last-train-horizontal-segment:hover .last-train-horizontal-tooltip,.last-train-horizontal-segment:focus-visible .last-train-horizontal-tooltip{opacity:1;transform:translate(-50%,0)}.last-train-horizontal-tooltip strong{display:block;margin-bottom:6px;color:#20242c;font-size:12px}.last-train-horizontal-tooltip b{display:block;margin-bottom:7px;color:#3f4b60;font-size:11px}.last-train-horizontal-tooltip p{margin:5px 0;color:#707989;font-size:11px;line-height:1.5}.last-train-horizontal-stops{display:flex;flex-direction:column;gap:3px;margin-top:8px;padding-left:10px;border-left:2px solid #e5e7eb}.last-train-horizontal-stops span{color:#687181;font-size:10px}.last-train-route-meta{margin-top:4px;text-align:right;color:#8b93a1;font-size:10px}.last-train-horizontal-segment:focus-visible .last-train-horizontal-tooltip{pointer-events:auto}
 
-.last-train-route-endpoint strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.last-train-route-dot {
-  width: 11px;
-  height: 11px;
-  flex: 0 0 11px;
-  border-radius: 50%;
-  background: #fff;
-  border: 3px solid #5b5ce2;
-  box-shadow: 0 0 0 4px rgba(91, 92, 226, 0.09);
-}
-
-.last-train-route-dot-end {
-  border-color: #596273;
-  box-shadow: 0 0 0 4px rgba(89, 98, 115, 0.08);
-}
-
-.last-train-route-track {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 4px;
-}
-
-.last-train-visual-segment {
-  position: relative;
-  display: flex;
-  min-width: 0;
-  flex: 1 1 0;
-  align-items: center;
-  justify-content: center;
-  min-height: 74px;
-}
-
-.last-train-visual-line {
-  position: absolute;
-  top: 50%;
-  right: 0;
-  left: 0;
-  height: 7px;
-  transform: translateY(-50%);
-  border-radius: 999px;
-  background: #b7bdc8;
-}
-
-.last-train-segment-walking .last-train-visual-line {
-  height: 3px;
-  background: repeating-linear-gradient(90deg, #aeb4be 0 7px, transparent 7px 12px);
-}
-
-.last-train-segment-bus .last-train-visual-line {
-  background: #3f7ee8;
-  box-shadow: 0 2px 8px rgba(63, 126, 232, 0.22);
-}
-
-.last-train-segment-subway .last-train-visual-line {
-  background: #6d737d;
-}
-
-.last-train-line-1 .last-train-visual-line { background: #0052a4; }
-.last-train-line-2 .last-train-visual-line { background: #00a84f; }
-.last-train-line-3 .last-train-visual-line { background: #ef7c1c; }
-.last-train-line-4 .last-train-visual-line { background: #00a4e4; }
-.last-train-line-5 .last-train-visual-line { background: #996cac; }
-.last-train-line-6 .last-train-visual-line { background: #cd7c2f; }
-.last-train-line-7 .last-train-visual-line { background: #747f00; }
-.last-train-line-8 .last-train-visual-line { background: #e6186c; }
-.last-train-line-9 .last-train-visual-line { background: #bdb092; }
-.last-train-line-default .last-train-visual-line { background: #69717d; }
-
-.last-train-visual-node {
-  position: absolute;
-  z-index: 2;
-  top: 50%;
-  left: 50%;
-  width: 15px;
-  height: 15px;
-  border: 3px solid #fff;
-  border-radius: 50%;
-  background: currentColor;
-  box-shadow: 0 1px 6px rgba(25, 31, 52, 0.2);
-  transform: translate(-50%, -50%);
-}
-
-.last-train-segment-walking { color: #9aa1ae; }
-.last-train-segment-bus { color: #3f7ee8; }
-.last-train-segment-subway { color: #69717d; }
-.last-train-line-1 { color: #0052a4; }
-.last-train-line-2 { color: #00a84f; }
-.last-train-line-3 { color: #ef7c1c; }
-.last-train-line-4 { color: #00a4e4; }
-.last-train-line-5 { color: #996cac; }
-.last-train-line-6 { color: #cd7c2f; }
-.last-train-line-7 { color: #747f00; }
-.last-train-line-8 { color: #e6186c; }
-.last-train-line-9 { color: #bdb092; }
-
-.last-train-visual-content {
-  position: relative;
-  z-index: 3;
-  width: min(100%, 150px);
-  padding: 7px 9px;
-  border: 1px solid rgba(255, 255, 255, 0.92);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 4px 12px rgba(25, 31, 52, 0.08);
-  text-align: center;
-}
-
-.last-train-visual-label {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  font-size: 10px;
-  color: #6c7482;
-}
-
-.last-train-visual-label strong {
-  color: #252a34;
-  font-size: 10px;
-}
-
-.last-train-visual-vehicle {
-  margin-top: 2px;
-  overflow: hidden;
-  color: #313743;
-  font-size: 11px;
-  font-weight: 800;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.last-train-visual-stops {
-  display: flex;
-  justify-content: center;
-  gap: 3px;
-  margin-top: 4px;
-  overflow: hidden;
-  color: #8a919e;
-  font-size: 9px;
-}
-
-.last-train-visual-stops span {
-  overflow: hidden;
-  max-width: 58px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.last-train-visual-stops span + span::before {
-  content: "·";
-  margin-right: 3px;
-  color: #b0b5be;
-}
-
-.last-train-visual-note {
-  position: absolute;
-  top: calc(50% + 19px);
-  color: #8a919e;
-  font-size: 9px;
-  white-space: nowrap;
-}
-
-.last-train-segment-details {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 10px;
-}
-
-.last-train-segment-detail {
-  padding: 9px 11px;
-  border: 1px solid #eef0f4;
-  border-radius: 10px;
-  background: #fafbfc;
-}
-
-.last-train-segment-detail .last-train-segment-heading {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 3px;
-}
-
-.last-train-segment-detail p {
-  margin: 3px 0 0;
-  color: #7d8594;
-  font-size: 10px;
-  line-height: 1.5;
-}
-
-@media (max-width: 700px) {
-  .last-train-route-line {
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
-
-  .last-train-route-endpoint,
-  .last-train-route-endpoint:last-child {
-    justify-content: flex-start;
-    text-align: left;
-  }
-
-  .last-train-route-track {
-    min-height: 92px;
-  }
-
-  .last-train-visual-content {
-    width: min(100%, 125px);
-  }
-}
+@media(max-width:700px){.last-train-horizontal-route{grid-template-columns:1fr;gap:8px}.last-train-route-endpoint:last-child{justify-content:flex-start;text-align:left}.last-train-horizontal-track{overflow-x:auto;padding:20px 0}.last-train-horizontal-segment{min-width:120px}.last-train-horizontal-tooltip{left:50%}}
