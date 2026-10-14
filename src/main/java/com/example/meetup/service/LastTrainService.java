@@ -75,6 +75,18 @@ public class LastTrainService {
 
         String dayType = todayDayType();
         List<Map<String, String>> stations = findStations(stationName);
+        // 같은 이름의 역이 여러 노선에 존재하면 요청 노선과 맞는 역부터 조회해
+        // 불필요한 시간표 API 호출을 줄인다.
+        String requestedLine = subwayLineNumber(normalize(routeText));
+        if (!requestedLine.isBlank() && !stations.isEmpty()) {
+            List<Map<String, String>> matchingStations = stations.stream()
+                    .filter(station -> {
+                        String stationLine = subwayLineNumber(normalize(station.getOrDefault("routeName", "")));
+                        return stationLine.isBlank() || requestedLine.equals(stationLine);
+                    })
+                    .toList();
+            if (!matchingStations.isEmpty()) stations = matchingStations;
+        }
         if (stations.isEmpty()) {
             result.put("status", "STATION_NOT_FOUND");
             result.put("message", "지하철 역의 TAGO 정보를 찾지 못했습니다.");
