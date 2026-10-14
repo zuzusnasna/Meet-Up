@@ -55,11 +55,11 @@ public class TransitService {
 
         List<ScheduleMatch> matchingSchedules = new ArrayList<>();
 
-        // 같은 역명이라도 호선별 TAGO 역 ID가 다를 수 있으므로,
-        // 목적지 후보의 시간표를 한 번씩 조회하고 출발지 호선 후보와 대조한다.
-        for (TagoStation destination : destinationStations) {
+        // 출발역(약속장소)에서 출발하는 시간표를 조회하고,
+        // 종착역이 참여자 출발지 주변 역인 직통 운행만 후보로 남긴다.
+        for (TagoStation origin : originStations) {
             for (String direction : List.of("U", "D")) {
-                JsonNode schedules = fetchSchedules(destination.id(), normalizedDayType, direction);
+                JsonNode schedules = fetchSchedules(origin.id(), normalizedDayType, direction);
                 for (JsonNode schedule : schedules) {
                     String terminal = firstText(schedule,
                             "endsubwaystationnm", "endSubwayStationNm",
@@ -67,11 +67,11 @@ public class TransitService {
                             "arrivalStationName", "subwayStationName");
                     String scheduleRoute = firstText(schedule,
                             "subwayRouteName", "subwayRouteNm", "routeName", "routeNm");
-                    if (!scheduleRoute.isBlank() && !routesMatch(scheduleRoute, destination.routeName())) continue;
+                    if (!scheduleRoute.isBlank() && !routesMatch(scheduleRoute, origin.routeName())) continue;
 
-                    for (TagoStation origin : originStations) {
-                        if (routesMatch(destination.routeName(), origin.routeName())
-                                && isSameStation(terminal, origin.name())) {
+                    for (TagoStation destination : destinationStations) {
+                        if (routesMatch(origin.routeName(), destination.routeName())
+                                && isSameStation(terminal, destination.name())) {
                             matchingSchedules.add(new ScheduleMatch(schedule, origin, destination));
                         }
                     }
