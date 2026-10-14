@@ -1,5 +1,6 @@
 package com.example.meetup.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +13,7 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -21,18 +23,29 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class KakaoTransitRouteService {
 
+    private static final Duration ROUTE_CACHE_TTL = Duration.ofMinutes(10);
+    private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
+
     @Value("${kakao.rest-api-key}")
     private String restApiKey;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final RedisCacheService redisCacheService;
 
     /**
      * 약속장소에서 사용자의 출발지까지 카카오 대중교통 경로를 조회한다.
-     * 막차/시간표 조회는 여기서 하지 않고, 우선 경로와 환승 구간만 반환한다.
+     * 막차/시간표 조회는 여기서 하지 않고 경로와 환승 구간만 반환한다.
      */
     public Map<String, Object> findReturnRoutes(
             double meetingLatitude, double meetingLongitude,
             double originLatitude, double originLongitude) {
+
+        String cacheKey = routeCacheKey(
+                meetingLatitude, meetingLongitude,
+                originLatitude, originLongitude);
+
+        Map<String, Object> cached = redisCacheService.get(cacheKey, MAP_TYPE);
+        if (cached != null) return cached;
 
         JsonNode root = requestRoutes(
                 meetingLongitude, meetingLatitude,
@@ -48,6 +61,7 @@ public class KakaoTransitRouteService {
         if (!routes.isArray()) {
             result.put("routes", routeList);
             result.put("message", "카카오에서 대중교통 경로를 찾지 못했습니다.");
+            redisCacheService.put(cacheKey, result, ROUTE_CACHE_TTL);
             return result;
         }
 
@@ -75,6 +89,7 @@ public class KakaoTransitRouteService {
 
         result.put("routes", routeList);
         result.put("message", "약속장소에서 출발지까지의 대중교통 경로를 조회했습니다.");
+        redisCacheService.put(cacheKey, result, ROUTE_CACHE_TTL);
         return result;
     }
 
@@ -112,7 +127,6 @@ public class KakaoTransitRouteService {
         }
         segment.put("vehicles", vehicles);
 
-        // 경로 단계 자체의 좌표도 함께 반환해 프론트에서 지도에 표시할 수 있게 한다.
         List<List<Double>> path = new ArrayList<>();
         JsonNode points = step.path("path").path("points");
         if (points.isArray()) {
@@ -189,6 +203,19 @@ public class KakaoTransitRouteService {
         point.put("latitude", latitude);
         point.put("longitude", longitude);
         return point;
+    }
+
+    private String routeCacheKey(
+            double meetingLatitude, double meetingLongitude,
+            double originLatitude, double originLongitude) {
+        return "transit:route:" + coordinate(meetingLatitude) + ":"
+                + coordinate(meetingLongitude) + ":"
+                + coordinate(originLatitude) + ":"
+                + coordinate(originLongitude);
+    }
+
+    private String coordinate(double value) {
+        return String.format(java.util.Locale.ROOT, "%.5f", value);
     }
 
     private String text(JsonNode node, String field) {
