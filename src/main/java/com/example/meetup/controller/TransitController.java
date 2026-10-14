@@ -30,6 +30,19 @@ public class TransitController {
         return transitService.findLastTrain(originLatitude, originLongitude, destinationLatitude, destinationLongitude, dayType);
     }
 
+    @GetMapping("/last-train/route")
+    public Map<String, Object> findLastTrainForRoute(
+            @RequestParam double originLatitude,
+            @RequestParam double originLongitude,
+            @RequestParam double destinationLatitude,
+            @RequestParam double destinationLongitude,
+            @RequestParam String routeSegments,
+            @RequestParam(required = false) String dayType
+    ) {
+        return transitService.findLastTrainForRoute(
+                originLatitude, originLongitude, destinationLatitude, destinationLongitude, dayType, routeSegments);
+    }
+
     @GetMapping("/return-routes")
     public Map<String, Object> findReturnRoutes(
             @RequestParam double meetingLatitude,
