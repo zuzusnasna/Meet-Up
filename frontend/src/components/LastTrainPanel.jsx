@@ -29,7 +29,24 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
           const response = await fetch("/api/transit/return-routes?" + params.toString());
           const data = await response.json();
           if (!response.ok) throw new Error(data.message || "귀가 경로 조회에 실패했습니다.");
-          return [userId, data];
+
+          // 막차 시간표는 약속장소 주변 역을 기준으로 별도 조회한다.
+          // 경로 API 자체에는 구간별 막차 시각이 없어 1차 버전에서는 참고 시간표로 사용한다.
+          let lastTrain = null;
+          try {
+            const scheduleParams = new URLSearchParams({
+              originLatitude: String(location.latitude),
+              originLongitude: String(location.longitude),
+              destinationLatitude: String(finalPlace.latitude),
+              destinationLongitude: String(finalPlace.longitude),
+            });
+            const scheduleResponse = await fetch("/api/transit/last-train?" + scheduleParams.toString());
+            lastTrain = await scheduleResponse.json();
+            if (!scheduleResponse.ok) lastTrain = null;
+          } catch (scheduleError) {
+            console.warn("막차 시간표 조회에 실패했습니다.", scheduleError);
+          }
+          return [userId, { ...data, lastTrain }];
         } catch (error) {
           console.error(error);
           return [userId, { status: "ERROR", message: error.message || "귀가 경로를 불러오지 못했습니다.", routes: [] }];
@@ -59,6 +76,56 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
   const formatDuration = (seconds) => {
     const minutes = Math.round(Number(seconds || 0) / 60);
     return minutes > 0 ? minutes + "분" : "시간 정보 없음";
+  };
+
+  const parseDepartureMinutes = (value) => {
+    const digits = String(value || "").replace(/[^0-9]/g, "");
+    if (digits.length < 4) return null;
+    const hours = Number(digits.slice(0, 2));
+    const minutes = Number(digits.slice(2, 4));
+    if (hours > 23 || minutes > 59) return null;
+    return hours * 60 + minutes;
+  };
+
+  const isNightBus = (segment) => {
+    if (segment?.type !== "BUS") return false;
+    const vehicleText = (segment.vehicles || []).map((vehicle) => {
+      if (typeof vehicle === "string") return vehicle;
+      return [vehicle?.name || "", vehicle?.type || ""].filter(Boolean).join(" ");
+    }).join(" ");
+    const text = `${vehicleText} ${segment.guidance || ""} ${(segment.stops || []).join(" ")}`;
+    return /심야|(?:^|\\s)N\\s?\\d{1,4}(?:\\s|$)/i.test(text);
+  };
+
+  const getLastDepartureDeadline = (route, lastTrain) => {
+    const segments = Array.isArray(route?.segments) ? route.segments : [];
+    const departure = lastTrain?.lastDeparture?.departureTime;
+    const departureMinutes = parseDepartureMinutes(departure);
+    if (lastTrain?.status !== "OK" || departureMinutes == null || segments.length === 0) return null;
+
+    // 심야버스는 막차 계산에서 제외하고, 그 직전의 지하철/일반 버스를 기준 구간으로 삼는다.
+    const nightBusIndex = segments.findIndex(isNightBus);
+    const limitIndex = nightBusIndex >= 0 ? nightBusIndex : segments.length;
+    let targetIndex = -1;
+    for (let index = limitIndex - 1; index >= 0; index -= 1) {
+      if (segments[index]?.type === "SUBWAY" || segments[index]?.type === "BUS") {
+        targetIndex = index;
+        break;
+      }
+    }
+    if (targetIndex < 0) return null;
+
+    const precedingMinutes = segments.slice(0, targetIndex)
+      .reduce((total, segment) => total + Math.max(0, Number(segment?.timeSeconds || 0)) / 60, 0);
+    let deadline = Math.floor(departureMinutes - precedingMinutes - 10);
+    deadline = ((deadline % 1440) + 1440) % 1440;
+    const hours = String(Math.floor(deadline / 60)).padStart(2, "0");
+    const minutes = String(deadline % 60).padStart(2, "0");
+    return {
+      time: `${hours}:${minutes}`,
+      baseTime: String(departure || "").replace(/^(\\d{2})(\\d{2})(\\d{2})$/, "$1:$2:$3").slice(0, 5),
+      ignoredNightBus: nightBusIndex >= 0,
+    };
   };
 
   const formatVehicles = (vehicles = []) => vehicles
@@ -113,7 +180,7 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
         <div><span className="last-train-eyebrow">RETURN TRIP</span><h2>막차 안내</h2><p>약속장소에서 참여자별 출발지로 돌아가는 대중교통 경로를 확인합니다.</p></div>
         <div className="last-train-destination"><span>최종 약속장소</span><strong>{finalPlace?.placeName || "미정"}</strong><small>{finalPlace?.address || ""}</small></div>
       </div>
-      <div className="last-train-notice" role="note"><strong>조회 기준</strong><p>약속장소 → 출발지 방향의 경로를 빠른 순서로 최대 3개 표시합니다. 각 이동 구간에 마우스를 올리면 상세 경로가 표시되며, 클릭하면 고정됩니다.</p></div>
+      <div className="last-train-notice" role="note"><strong>조회 기준</strong><p>약속장소 → 출발지 방향의 경로를 빠른 순서로 최대 3개 표시합니다. 막차 마감은 심야버스를 제외하고 참고 시간표에서 이전 구간 소요시간과 환승 여유 10분을 차감한 추정치입니다. 구간별 실제 막차 연결을 보장하지는 않습니다. 각 이동 구간에 마우스를 올리면 상세 경로가 표시되며, 클릭하면 고정됩니다.</p></div>
       {loadingResults && <div className="last-train-loading">귀가 경로와 환승 구간을 조회하고 있습니다...</div>}
       {participants.length === 0 ? <div className="last-train-empty">참여자 정보를 불러오지 못했습니다.</div> : (
         <div className="last-train-list">
@@ -130,6 +197,10 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
                   {routes.length === 0 ? <div className="last-train-empty">대중교통 경로를 찾지 못했습니다.</div> : routes.map((route, routeIndex) => (
                     <div className="last-train-route-option" key={routeIndex}>
                       <div className="last-train-route-summary"><strong>{routeIndex + 1}번 경로</strong><span>{formatDuration(route.totalTimeSeconds)} · 환승 {route.transferCount ?? 0}회</span></div>
+                      {(() => {
+                        const deadline = getLastDepartureDeadline(route, result?.lastTrain);
+                        return deadline ? <div className="last-train-deadline"><strong>막차 출발 마감 추정 {deadline.time}</strong><span>{deadline.ignoredNightBus ? "심야버스 제외 · " : ""}환승 여유 10분 포함</span></div> : null;
+                      })()}
                       <div className="last-train-horizontal-route">
                         <div className="last-train-route-endpoint"><span className="last-train-route-dot" /><strong>{finalPlace?.placeName || "약속장소"}</strong></div>
                         <div className="last-train-horizontal-track">
