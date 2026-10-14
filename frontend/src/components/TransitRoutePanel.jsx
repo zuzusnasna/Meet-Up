@@ -8,66 +8,66 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
   const [hoveredSegment, setHoveredSegment] = useState(null);
 
   useEffect(() => {
-    let cancelled = false;
+    setRouteResults({});
+    setPinnedSegment(null);
+    setHoveredSegment(null);
+  }, [finalPlace?.placeId, finalPlace?.latitude, finalPlace?.longitude]);
 
-    async function loadRoutes() {
-      if (finalPlace?.latitude == null || finalPlace?.longitude == null) {
-        setRouteResults({});
-        return;
+  const refreshRoutes = async () => {
+    if (finalPlace?.latitude == null || finalPlace?.longitude == null) return;
+
+    const origins = participants.map((participant) => {
+      const location = locations.find((item) => Number(item.userId) === Number(participant.userId));
+      return { participant, location };
+    }).filter(({ location }) => location?.latitude != null && location?.longitude != null);
+
+    setLoading(true);
+    setPinnedSegment(null);
+    setHoveredSegment(null);
+
+    try {
+      const response = await fetch("/api/transit/return-routes/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          meetingLatitude: Number(finalPlace.latitude),
+          meetingLongitude: Number(finalPlace.longitude),
+          refresh: true,
+          origins: origins.map(({ participant, location }) => ({
+            userId: Number(participant.userId),
+            latitude: Number(location.latitude),
+            longitude: Number(location.longitude),
+          })),
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "귀가 경로 조회에 실패했습니다.");
+
+      const normalized = {};
+      for (const { participant } of origins) {
+        const raw = data[String(participant.userId)] || {};
+        const routes = (Array.isArray(raw.routes) ? raw.routes : [])
+          .filter((route) => Number(route.transferCount) > 0)
+          .sort((a, b) => Number(a.totalTimeSeconds || 0) - Number(b.totalTimeSeconds || 0))
+          .slice(0, 3);
+        normalized[participant.userId] = {
+          ...raw,
+          routes,
+          message: routes.length
+            ? "환승이 필요한 경로를 소요시간이 짧은 순으로 표시합니다."
+            : "환승이 필요한 대중교통 경로를 찾지 못했습니다.",
+        };
       }
 
-      const origins = participants.map((participant) => {
-        const location = locations.find((item) => Number(item.userId) === Number(participant.userId));
-        return { participant, location };
-      }).filter(({ location }) => location?.latitude != null && location?.longitude != null);
-
-      setLoading(true);
-      try {
-        const response = await fetch("/api/transit/return-routes/batch", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            meetingLatitude: Number(finalPlace.latitude),
-            meetingLongitude: Number(finalPlace.longitude),
-            origins: origins.map(({ participant, location }) => ({
-              userId: Number(participant.userId),
-              latitude: Number(location.latitude),
-              longitude: Number(location.longitude),
-            })),
-          }),
-        });
-
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || "귀가 경로 조회에 실패했습니다.");
-
-        const normalized = {};
-        for (const { participant } of origins) {
-          const raw = data[String(participant.userId)] || {};
-          const routes = (Array.isArray(raw.routes) ? raw.routes : [])
-            .filter((route) => Number(route.transferCount) > 0)
-            .sort((a, b) => Number(a.totalTimeSeconds || 0) - Number(b.totalTimeSeconds || 0))
-            .slice(0, 3);
-          normalized[participant.userId] = {
-            ...raw,
-            routes,
-            message: routes.length
-              ? "환승이 필요한 경로만 표시합니다."
-              : "환승이 필요한 대중교통 경로를 찾지 못했습니다.",
-          };
-        }
-
-        if (!cancelled) setRouteResults(normalized);
-      } catch (error) {
-        console.error(error);
-        if (!cancelled) setRouteResults({});
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+      setRouteResults(normalized);
+    } catch (error) {
+      console.error(error);
+      setRouteResults({});
+    } finally {
+      setLoading(false);
     }
-
-    loadRoutes();
-    return () => { cancelled = true; };
-  }, [finalPlace?.placeId, finalPlace?.latitude, finalPlace?.longitude, participants, locations]);
+  };
 
   const routeUrl = (location) => {
     if (!location || !finalPlace) return null;
@@ -143,21 +143,28 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
           <h2>환승 경로</h2>
           <p>최종 약속장소에서 참여자 출발지까지, 환승이 필요한 대중교통 경로만 표시합니다.</p>
         </div>
-        <div className="transit-routes-destination">
-          <span>최종 약속장소</span>
-          <strong>{finalPlace?.placeName || "미정"}</strong>
-          <small>{finalPlace?.address || ""}</small>
+        <div className="transit-routes-heading-actions">
+          <button type="button" className="transit-routes-refresh" onClick={(event) => { event.stopPropagation(); refreshRoutes(); }} disabled={loading || finalPlace?.latitude == null || finalPlace?.longitude == null}>
+            {loading ? "조회 중..." : "↻ 경로 새로고침"}
+          </button>
+          <div className="transit-routes-destination">
+            <span>최종 약속장소</span>
+            <strong>{finalPlace?.placeName || "미정"}</strong>
+            <small>{finalPlace?.address || ""}</small>
+          </div>
         </div>
       </header>
 
       <div className="transit-routes-notice" role="note">
         <strong>조회 기준</strong>
-        <p>참여자별 요청을 하나의 배치 요청으로 묶고, 서버에서는 같은 출발지·약속장소 조합의 카카오 경로를 Redis에 10분간 캐시합니다. 경로별 막차는 첫 지하철 승차역 기준으로 표시합니다.</p>
+        <p>환승 경로는 자동으로 갱신하지 않습니다. 새로고침 버튼을 눌렀을 때 카카오에서 현재 가능한 경로를 다시 조회하고, 환승 경로 중 소요시간이 짧은 순으로 최대 3개를 표시합니다.</p>
       </div>
 
-      {loading && <div className="transit-routes-loading">환승 경로를 조회하고 있습니다...</div>}
+      {loading && <div className="transit-routes-loading">최신 환승 경로를 조회하고 있습니다...</div>}
       {participants.length === 0 ? (
         <div className="transit-routes-empty">참여자 정보를 불러오지 못했습니다.</div>
+      ) : Object.keys(routeResults).length === 0 && !loading ? (
+        <div className="transit-routes-empty">현재 가능한 환승 경로를 확인하려면 위의 새로고침 버튼을 눌러주세요.</div>
       ) : (
         <div className="transit-routes-list">
           {participants.map((participant) => {
