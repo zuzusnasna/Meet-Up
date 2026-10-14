@@ -31,11 +31,8 @@ public class KakaoTransitRouteService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final RedisCacheService redisCacheService;
+    private final LastTrainService lastTrainService;
 
-    /**
-     * 약속장소에서 사용자의 출발지까지 카카오 대중교통 경로를 조회한다.
-     * 막차/시간표 조회는 여기서 하지 않고 경로와 환승 구간만 반환한다.
-     */
     public Map<String, Object> findReturnRoutes(
             double meetingLatitude, double meetingLongitude,
             double originLatitude, double originLongitude) {
@@ -76,14 +73,12 @@ public class KakaoTransitRouteService {
 
             List<Map<String, Object>> segments = new ArrayList<>();
             JsonNode steps = routeNode.path("steps");
-
             if (steps.isArray()) {
-                for (JsonNode step : steps) {
-                    segments.add(parseSegment(step));
-                }
+                for (JsonNode step : steps) segments.add(parseSegment(step));
             }
 
             route.put("segments", segments);
+            route.put("lastTrain", lastTrainService.findLastTrainForRoute(segments));
             routeList.add(route);
         }
 
@@ -96,7 +91,6 @@ public class KakaoTransitRouteService {
     private Map<String, Object> parseSegment(JsonNode step) {
         JsonNode properties = step.path("properties");
         Map<String, Object> segment = new LinkedHashMap<>();
-
         segment.put("type", text(properties, "type"));
         segment.put("guidance", text(properties, "guidance"));
         segment.put("distanceMeters", number(properties, "distance"));
@@ -107,8 +101,7 @@ public class KakaoTransitRouteService {
         if (stopNodes.isArray()) {
             for (JsonNode stop : stopNodes) {
                 String name = text(stop, "name");
-                if (!name.isBlank() && (stops.isEmpty()
-                        || !stops.get(stops.size() - 1).equals(name))) {
+                if (!name.isBlank() && (stops.isEmpty() || !stops.get(stops.size() - 1).equals(name))) {
                     stops.add(name);
                 }
             }
@@ -140,14 +133,11 @@ public class KakaoTransitRouteService {
             }
         }
         segment.put("path", path);
-
         return segment;
     }
 
-    private JsonNode requestRoutes(
-            double startLongitude, double startLatitude,
-            double endLongitude, double endLatitude) {
-
+    private JsonNode requestRoutes(double startLongitude, double startLatitude,
+                                   double endLongitude, double endLatitude) {
         HttpURLConnection connection = null;
         try {
             String url = "https://dapi.kakao.com/v2/routing/publictraffic"
@@ -162,38 +152,25 @@ public class KakaoTransitRouteService {
             connection.setRequestMethod("GET");
             connection.setConnectTimeout(5000);
             connection.setReadTimeout(10000);
-            connection.setRequestProperty(
-                    "Authorization",
-                    "KakaoAK " + (restApiKey == null ? "" : restApiKey.trim()));
+            connection.setRequestProperty("Authorization", "KakaoAK " + (restApiKey == null ? "" : restApiKey.trim()));
             connection.setRequestProperty("Accept", "application/json");
 
             int status = connection.getResponseCode();
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(
-                    status >= 200 && status < 300
-                            ? connection.getInputStream()
-                            : connection.getErrorStream(),
+                    status >= 200 && status < 300 ? connection.getInputStream() : connection.getErrorStream(),
                     StandardCharsets.UTF_8))) {
-
                 StringBuilder body = new StringBuilder();
                 String line;
-                while ((line = reader.readLine()) != null) {
-                    body.append(line);
-                }
-
+                while ((line = reader.readLine()) != null) body.append(line);
                 if (status < 200 || status >= 300) {
-                    throw new IllegalStateException(
-                            "Kakao public transit API HTTP " + status + ": " + body);
+                    throw new IllegalStateException("Kakao public transit API HTTP " + status + ": " + body);
                 }
-
                 return objectMapper.readTree(body.toString());
             }
         } catch (Exception e) {
-            throw new IllegalStateException(
-                    "카카오 대중교통 경로 API 호출에 실패했습니다.", e);
+            throw new IllegalStateException("카카오 대중교통 경로 API 호출에 실패했습니다.", e);
         } finally {
-            if (connection != null) {
-                connection.disconnect();
-            }
+            if (connection != null) connection.disconnect();
         }
     }
 
@@ -205,13 +182,10 @@ public class KakaoTransitRouteService {
         return point;
     }
 
-    private String routeCacheKey(
-            double meetingLatitude, double meetingLongitude,
-            double originLatitude, double originLongitude) {
-        return "transit:route:" + coordinate(meetingLatitude) + ":"
-                + coordinate(meetingLongitude) + ":"
-                + coordinate(originLatitude) + ":"
-                + coordinate(originLongitude);
+    private String routeCacheKey(double meetingLatitude, double meetingLongitude,
+                                 double originLatitude, double originLongitude) {
+        return "transit:route:" + coordinate(meetingLatitude) + ":" + coordinate(meetingLongitude)
+                + ":" + coordinate(originLatitude) + ":" + coordinate(originLongitude);
     }
 
     private String coordinate(double value) {
@@ -229,8 +203,6 @@ public class KakaoTransitRouteService {
     }
 
     private String encode(String value) {
-        return URLEncoder.encode(
-                value == null ? "" : value,
-                StandardCharsets.UTF_8);
+        return URLEncoder.encode(value == null ? "" : value, StandardCharsets.UTF_8);
     }
 }
