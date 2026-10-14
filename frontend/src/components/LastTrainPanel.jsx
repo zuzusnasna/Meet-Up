@@ -78,6 +78,17 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
     return minutes > 0 ? minutes + "분" : "시간 정보 없음";
   };
 
+  const formatVehicles = (vehicles = []) => vehicles
+    .map((vehicle) => {
+      if (vehicle == null) return "";
+      if (typeof vehicle === "string") return vehicle;
+      const type = vehicle.type || "";
+      const name = vehicle.name || "";
+      return [type, name].filter(Boolean).join(" ");
+    })
+    .filter(Boolean)
+    .join(", ");
+
   return (
     <section className="last-train-page">
       <div className="last-train-heading">
@@ -86,7 +97,7 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
       </div>
       <div className="last-train-notice" role="note">
         <strong>조회 기준</strong>
-        <p>카카오 대중교통 길찾기에서 약속장소 → 출발지 방향의 경로와 환승 구간을 조회합니다. 지하철 막차는 각 구간의 TAGO 시간표 조회 결과이며, 경로의 실제 막차 연결 가능성을 보장하지 않습니다. 현재 연결된 TAGO 버스 API는 실시간 도착정보만 제공하므로 버스 막차는 시간표 데이터가 연결되기 전까지 확정 시각을 표시하지 않습니다.</p>
+        <p>카카오 대중교통 길찾기에서 약속장소 → 출발지 방향의 경로와 환승 구간을 조회합니다.</p>
       </div>
       {loadingResults && <div className="last-train-loading">귀가 경로와 환승 구간을 조회하고 있습니다...</div>}
       {participants.length === 0 ? <div className="last-train-empty">참여자 정보를 불러오지 못했습니다.</div> : (
@@ -94,7 +105,10 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
           {participants.map((participant) => {
             const location = locations.find((item) => Number(item.userId) === Number(participant.userId));
             const result = routeResults[participant.userId];
-            const routes = Array.isArray(result?.routes) ? result.routes : [];
+            const routes = (Array.isArray(result?.routes) ? result.routes : [])
+              .slice()
+              .sort((a, b) => Number(a.totalTimeSeconds || 0) - Number(b.totalTimeSeconds || 0))
+              .slice(0, 3);
             const url = routeUrl(location);
             return <article className="last-train-card" key={participant.userId}>
               <div className="last-train-person"><span className="last-train-avatar" aria-hidden="true">👤</span><div><strong>{participant.name || participant.userName || participant.email || "참여자"}</strong><span>{location?.address || "출발지 미등록"}</span></div></div>
@@ -116,7 +130,7 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
                               <strong>{modeLabel(segment.type)}</strong>
                               <span>{formatDuration(segment.timeSeconds)}</span>
                             </div>
-                            {segment.vehicles?.length > 0 && <p className="last-train-segment-route">{segment.vehicles.join(", ")}</p>}
+                            {segment.vehicles?.length > 0 && <p className="last-train-segment-route">{formatVehicles(segment.vehicles)}</p>}
                             {segment.guidance && <p>{segment.guidance}</p>}
                             {segment.stops?.length > 0 && <p className="last-train-segment-stops">{segment.stops.join(" → ")}</p>}
                             {segment.type === "SUBWAY" && (
