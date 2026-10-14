@@ -3,5 +3,6 @@ import AppRouter from "./router/AppRouter";
 import "./style.css";
 import "./midpoint.css";
 import "./vote-finish.css";
+import "./last-train-route.css";
 
 createRoot(document.getElementById("root")).render(<AppRouter />);
