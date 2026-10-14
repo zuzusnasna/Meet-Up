@@ -109,20 +109,17 @@ export default function LastTrainPanel({ finalPlace, participants = [], location
                       <div className="last-train-horizontal-route">
                         <div className="last-train-route-endpoint"><span className="last-train-route-dot" /><strong>{finalPlace?.placeName || "약속장소"}</strong></div>
                         <div className="last-train-horizontal-track">
-                          {(route.segments || []).map((segment, segmentIndex) => {
-                            const vehicle = formatVehicles(segment.vehicles || []);
-                            return <div className={`last-train-horizontal-segment ${getSegmentClass(segment)}`} key={segmentIndex} tabIndex="0">
+                          {(route.segments || []).map((segment, segmentIndex) => (
+                            <div className={`last-train-horizontal-segment ${getSegmentClass(segment)}`} key={segmentIndex} tabIndex="0">
                               <div className="last-train-horizontal-line" />
                               <div className="last-train-horizontal-label"><span>{modeLabel(segment.type)}</span><strong>{formatDuration(segment.timeSeconds)}</strong></div>
-                              {vehicle && <div className="last-train-horizontal-vehicle">{vehicle}</div>}
                               <div className="last-train-horizontal-tooltip">
                                 <strong>{modeLabel(segment.type)} · {formatDuration(segment.timeSeconds)}</strong>
-                                {vehicle && <b>{vehicle}</b>}
                                 {segment.guidance && <p>{segment.guidance}</p>}
                                 {segment.stops?.length > 0 && <div className="last-train-horizontal-stops">{segment.stops.map((stop, stopIndex) => <span key={`${stop}-${stopIndex}`}>{stop}</span>)}</div>}
                               </div>
-                            </div>;
-                          })}
+                            </div>
+                          ))}
                         </div>
                         <div className="last-train-route-endpoint"><span className="last-train-route-dot" /><strong>{location?.address || "출발지"}</strong></div>
                       </div>
