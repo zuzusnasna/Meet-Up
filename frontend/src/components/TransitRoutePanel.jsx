@@ -97,7 +97,6 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
     let text = String(value || "").replace(/\s+/g, " ").trim();
     if (!text) return "";
 
-    // 같은 역/정류장명이 붙어서 반복되는 경우 한 번만 남긴다.
     let changed = true;
     while (changed) {
       changed = false;
@@ -118,8 +117,11 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
     return text.replace(/\s+/g, " ").trim();
   };
 
+  // 역명 뒤에 붙은 호선/역/정류장 표기를 제거해서 같은 역인지 비교한다.
+  // 예: "종로3가역 1호선" / "종로3가 5호선" / "종로3가역" -> 모두 "종로3가"
   const normalizeStationName = (value) => String(value || "")
     .replace(/\s+/g, "")
+    .replace(/(?:역|정류장)?(?:[1-9]|10)호선$/i, "")
     .replace(/역$/, "")
     .replace(/정류장$/, "")
     .trim()
@@ -139,7 +141,6 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
     const firstTransitIndex = segments.findIndex((segment) => ["SUBWAY", "BUS"].includes(String(segment.type).toUpperCase()));
     if (firstTransitIndex < 0) return segments;
 
-    // 이미 API가 첫 승차 전 도보를 준 경우에는 그대로 사용한다.
     if (segments.slice(0, firstTransitIndex).some((segment) =>
       ["WALKING", "WALK", "FOOT"].includes(String(segment.type).toUpperCase()))) return segments;
 
@@ -147,16 +148,13 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
     const firstStop = firstTransit.stops?.[0] || "";
     const destinationStation = finalPlace?.placeName || "";
 
-    // 최종 목적지와 첫 승차역이 같은 역이면 환승 때문에 호선이 달라도 도보를 추가하지 않는다.
-    // 예: 종로3가역 → 종로3가역 1호선/5호선 환승은 앞에 도보를 만들지 않는다.
+    // 같은 역이면 호선이 달라도 도보를 추가하지 않는다.
     if (!firstStop || normalizeStationName(destinationStation) === normalizeStationName(firstStop)) return segments;
 
     const firstCoordinate = firstTransit.path?.[0];
     if (!Array.isArray(firstCoordinate) || firstCoordinate.length < 2
       || finalPlace?.latitude == null || finalPlace?.longitude == null) return segments;
 
-    // 목적지 역과 첫 승차역이 다른 경우에만 접근 도보를 표시한다.
-    // Kakao 경로 geometry의 첫 점을 승차 지점으로 보고 도보시간을 보수적으로 추정한다.
     const distance = haversineMeters(
       Number(finalPlace.latitude), Number(finalPlace.longitude),
       Number(firstCoordinate[1]), Number(firstCoordinate[0]),
@@ -287,64 +285,62 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
                     {result?.message && <p className="transit-routes-message">{result.message}</p>}
                     {routes.length === 0 ? (
                       <div className="transit-routes-empty">{result?.message || "환승 경로를 찾지 못했습니다."}</div>
-                    ) : routes.map((route, routeIndex) => {
-                      return (
-                        <div className="transit-routes-option" key={routeIndex}>
-                          <div className="transit-routes-summary">
-                            <strong>{routeIndex + 1}번 경로</strong>
-                            <span>{formatDuration(route.totalTimeSeconds)} · 환승 {route.transferCount}회</span>
-                          </div>
-                          <div className="transit-routes-horizontal">
-                            <div className="transit-routes-endpoint">
-                              <div>
-                                <span className="transit-routes-endpoint-label">최종 목적지</span>
-                                <strong>{finalPlace?.placeName || "약속장소"}</strong>
-                              </div>
-                            </div>
-                            <div className="transit-routes-track">
-                              {getDisplaySegments(route).map((segment, segmentIndex, allSegments) => {
-                                const busInfo = getBusInfo(segment);
-                                const previousSegment = allSegments[segmentIndex - 1];
-                                const isBusTransfer = segment.type === "BUS" && previousSegment?.type === "BUS";
-                                const segmentKey = `${participant.userId}-${routeIndex}-${segmentIndex}`;
-                                const isPinned = pinnedSegment === segmentKey;
-                                const isActive = hoveredSegment === segmentKey || (hoveredSegment === null && isPinned);
-                                return (
-                                  <div className={`transit-routes-segment ${getSegmentClass(segment)}${isPinned ? " is-pinned" : ""}${isBusTransfer ? " is-bus-transfer" : ""}`} key={segmentIndex} tabIndex="0" onMouseEnter={() => setHoveredSegment(segmentKey)} onMouseLeave={() => setHoveredSegment(null)} onClick={(event) => { event.stopPropagation(); setPinnedSegment(isPinned ? null : segmentKey); }}>
-                                    <div className="transit-routes-line" />
-                                    <div className="transit-routes-label"><span>{modeLabel(segment.type)}</span><strong>{formatDuration(segment.timeSeconds)}</strong></div>
-                                    {["WALKING", "WALK", "FOOT"].includes(String(segment.type).toUpperCase()) && segment.guidance && (
-                                      <div className="transit-routes-walking-guidance">{normalizeGuidance(segment.guidance)}</div>
-                                    )}
-                                    {segment.type === "SUBWAY" && (
-                                      <div className="transit-routes-segment-last-train">
-                                        {formatLastTrain(segment.lastTrain)
-                                          ? <>막차 <strong>{formatLastTrain(segment.lastTrain)}</strong></>
-                                          : (segment.lastTrain?.message || "막차 정보 없음")}
-                                      </div>
-                                    )}
-                                    {busInfo.length > 0 && <div className="transit-routes-bus-numbers" aria-label="이용 가능한 버스 번호">{busInfo.map((bus, index) => <span className={`transit-routes-bus-${bus.kind}`} key={`${bus.number}-${index}`}>{bus.number}</span>)}</div>}
-                                    {isBusTransfer && <span className="transit-routes-transfer-badge">버스 환승</span>}
-                                    {isActive && <div className="transit-routes-tooltip"><strong>{modeLabel(segment.type)} · {formatDuration(segment.timeSeconds)}</strong>{segment.guidance && <p>{normalizeGuidance(segment.guidance)}</p>}{segment.stops?.length > 0 && <div className="transit-routes-stops">{segment.stops.map((stop, index) => <span key={`${stop}-${index}`}>{stop}</span>)}</div>}</div>}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                            <div className="transit-routes-endpoint">
-                              <div>
-                                <span className="transit-routes-endpoint-label">사용자 출발지</span>
-                                <strong>{location?.address || "출발지"}</strong>
-                              </div>
+                    ) : routes.map((route, routeIndex) => (
+                      <div className="transit-routes-option" key={routeIndex}>
+                        <div className="transit-routes-summary">
+                          <strong>{routeIndex + 1}번 경로</strong>
+                          <span>{formatDuration(route.totalTimeSeconds)} · 환승 {route.transferCount}회</span>
+                        </div>
+                        <div className="transit-routes-horizontal">
+                          <div className="transit-routes-endpoint">
+                            <div>
+                              <span className="transit-routes-endpoint-label">최종 목적지</span>
+                              <strong>{finalPlace?.placeName || "약속장소"}</strong>
                             </div>
                           </div>
-
-                          <div className="transit-routes-meta">
-                            총 {formatDuration(route.totalTimeSeconds)}
-                            {url && <> · <a href={url} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>카카오맵에서 보기 ↗</a></>}
+                          <div className="transit-routes-track">
+                            {getDisplaySegments(route).map((segment, segmentIndex, allSegments) => {
+                              const busInfo = getBusInfo(segment);
+                              const previousSegment = allSegments[segmentIndex - 1];
+                              const isBusTransfer = segment.type === "BUS" && previousSegment?.type === "BUS";
+                              const segmentKey = `${participant.userId}-${routeIndex}-${segmentIndex}`;
+                              const isPinned = pinnedSegment === segmentKey;
+                              const isActive = hoveredSegment === segmentKey || (hoveredSegment === null && isPinned);
+                              return (
+                                <div className={`transit-routes-segment ${getSegmentClass(segment)}${isPinned ? " is-pinned" : ""}${isBusTransfer ? " is-bus-transfer" : ""}`} key={segmentIndex} tabIndex="0" onMouseEnter={() => setHoveredSegment(segmentKey)} onMouseLeave={() => setHoveredSegment(null)} onClick={(event) => { event.stopPropagation(); setPinnedSegment(isPinned ? null : segmentKey); }}>
+                                  <div className="transit-routes-line" />
+                                  <div className="transit-routes-label"><span>{modeLabel(segment.type)}</span><strong>{formatDuration(segment.timeSeconds)}</strong></div>
+                                  {["WALKING", "WALK", "FOOT"].includes(String(segment.type).toUpperCase()) && segment.guidance && (
+                                    <div className="transit-routes-walking-guidance">{normalizeGuidance(segment.guidance)}</div>
+                                  )}
+                                  {segment.type === "SUBWAY" && (
+                                    <div className="transit-routes-segment-last-train">
+                                      {formatLastTrain(segment.lastTrain)
+                                        ? <>막차 <strong>{formatLastTrain(segment.lastTrain)}</strong></>
+                                        : (segment.lastTrain?.message || "막차 정보 없음")}
+                                    </div>
+                                  )}
+                                  {busInfo.length > 0 && <div className="transit-routes-bus-numbers" aria-label="이용 가능한 버스 번호">{busInfo.map((bus, index) => <span className={`transit-routes-bus-${bus.kind}`} key={`${bus.number}-${index}`}>{bus.number}</span>)}</div>}
+                                  {isBusTransfer && <span className="transit-routes-transfer-badge">버스 환승</span>}
+                                  {isActive && <div className="transit-routes-tooltip"><strong>{modeLabel(segment.type)} · {formatDuration(segment.timeSeconds)}</strong>{segment.guidance && <p>{normalizeGuidance(segment.guidance)}</p>}{segment.stops?.length > 0 && <div className="transit-routes-stops">{segment.stops.map((stop, index) => <span key={`${stop}-${index}`}>{stop}</span>)}</div>}</div>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div className="transit-routes-endpoint">
+                            <div>
+                              <span className="transit-routes-endpoint-label">사용자 출발지</span>
+                              <strong>{location?.address || "출발지"}</strong>
+                            </div>
                           </div>
                         </div>
-                      );
-                    })}
+
+                        <div className="transit-routes-meta">
+                          총 {formatDuration(route.totalTimeSeconds)}
+                          {url && <> · <a href={url} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>카카오맵에서 보기 ↗</a></>}
+                        </div>
+                      </div>
+                    ))}
                   </>
                 )}
               </article>
