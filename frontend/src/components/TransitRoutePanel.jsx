@@ -82,7 +82,6 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
     const minutes = Math.round(Number(seconds || 0) / 60);
     if (minutes <= 0) return "시간 정보 없음";
     if (minutes < 60) return `${minutes}분`;
-
     const hours = Math.floor(minutes / 60);
     const remainingMinutes = minutes % 60;
     return remainingMinutes > 0 ? `${hours}시간 ${remainingMinutes}분` : `${hours}시간`;
@@ -95,11 +94,36 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
   };
 
   const normalizeGuidance = (value) => {
-    const text = String(value || "").replace(/\\s+/g, " ").trim();
+    let text = String(value || "").replace(/\s+/g, " ").trim();
     if (!text) return "";
-    // Some route responses repeat the same stop name consecutively.
-    return text.replace(/([^\\s]{2,})\\1+/g, "$1").replace(/\\s+/g, " ").trim();
+
+    // 같은 역/정류장명이 붙어서 반복되는 경우 한 번만 남긴다.
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (let length = Math.floor(text.length / 2); length >= 2; length -= 1) {
+        let found = false;
+        for (let start = 0; start + length * 2 <= text.length; start += 1) {
+          const part = text.slice(start, start + length);
+          if (part === text.slice(start + length, start + length * 2)) {
+            text = text.slice(0, start) + part + text.slice(start + length * 2);
+            changed = true;
+            found = true;
+            break;
+          }
+        }
+        if (found) break;
+      }
+    }
+    return text.replace(/\s+/g, " ").trim();
   };
+
+  const normalizeStationName = (value) => String(value || "")
+    .replace(/\s+/g, "")
+    .replace(/역$/, "")
+    .replace(/정류장$/, "")
+    .trim()
+    .toLowerCase();
 
   const haversineMeters = (lat1, lon1, lat2, lon2) => {
     const radians = (degrees) => degrees * Math.PI / 180;
@@ -113,28 +137,37 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
   const getDisplaySegments = (route) => {
     const segments = Array.isArray(route.segments) ? [...route.segments] : [];
     const firstTransitIndex = segments.findIndex((segment) => ["SUBWAY", "BUS"].includes(String(segment.type).toUpperCase()));
-    if (firstTransitIndex < 0 || segments.slice(0, firstTransitIndex).some((segment) =>
+    if (firstTransitIndex < 0) return segments;
+
+    // 이미 API가 첫 승차 전 도보를 준 경우에는 그대로 사용한다.
+    if (segments.slice(0, firstTransitIndex).some((segment) =>
       ["WALKING", "WALK", "FOOT"].includes(String(segment.type).toUpperCase()))) return segments;
 
     const firstTransit = segments[firstTransitIndex];
+    const firstStop = firstTransit.stops?.[0] || "";
+    const destinationStation = finalPlace?.placeName || "";
+
+    // 최종 목적지와 첫 승차역이 같은 역이면 환승 때문에 호선이 달라도 도보를 추가하지 않는다.
+    // 예: 종로3가역 → 종로3가역 1호선/5호선 환승은 앞에 도보를 만들지 않는다.
+    if (!firstStop || normalizeStationName(destinationStation) === normalizeStationName(firstStop)) return segments;
+
     const firstCoordinate = firstTransit.path?.[0];
     if (!Array.isArray(firstCoordinate) || firstCoordinate.length < 2
       || finalPlace?.latitude == null || finalPlace?.longitude == null) return segments;
 
-    // Kakao public-transit responses can omit the access walk before the first boarding segment.
-    // Estimate the missing access walk from the meeting-place coordinate to the first route point.
+    // 목적지 역과 첫 승차역이 다른 경우에만 접근 도보를 표시한다.
+    // Kakao 경로 geometry의 첫 점을 승차 지점으로 보고 도보시간을 보수적으로 추정한다.
     const distance = haversineMeters(
       Number(finalPlace.latitude), Number(finalPlace.longitude),
       Number(firstCoordinate[1]), Number(firstCoordinate[0]),
     );
     if (!Number.isFinite(distance) || distance < 100) return segments;
 
-    const firstStop = firstTransit.stops?.[0] || firstTransit.guidance || "첫 승차 지점";
     const walkingMinutes = Math.max(1, Math.round((distance * 1.25) / 75));
     segments.splice(firstTransitIndex, 0, {
       type: "WALKING",
       timeSeconds: walkingMinutes * 60,
-      guidance: `${finalPlace.placeName || "약속장소"}에서 ${firstStop}까지 도보 이동 (거리 기반 예상)`,
+      guidance: `${destinationStation || "최종 목적지"}에서 ${firstStop}까지 도보 이동`,
       stops: [],
       estimated: true,
     });
@@ -263,7 +296,6 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
                           </div>
                           <div className="transit-routes-horizontal">
                             <div className="transit-routes-endpoint">
-                              
                               <div>
                                 <span className="transit-routes-endpoint-label">최종 목적지</span>
                                 <strong>{finalPlace?.placeName || "약속장소"}</strong>
@@ -282,7 +314,7 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
                                     <div className="transit-routes-line" />
                                     <div className="transit-routes-label"><span>{modeLabel(segment.type)}</span><strong>{formatDuration(segment.timeSeconds)}</strong></div>
                                     {["WALKING", "WALK", "FOOT"].includes(String(segment.type).toUpperCase()) && segment.guidance && (
-                                      <div className="transit-routes-walking-guidance">{segment.guidance}</div>
+                                      <div className="transit-routes-walking-guidance">{normalizeGuidance(segment.guidance)}</div>
                                     )}
                                     {segment.type === "SUBWAY" && (
                                       <div className="transit-routes-segment-last-train">
@@ -299,7 +331,6 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
                               })}
                             </div>
                             <div className="transit-routes-endpoint">
-                              
                               <div>
                                 <span className="transit-routes-endpoint-label">사용자 출발지</span>
                                 <strong>{location?.address || "출발지"}</strong>
