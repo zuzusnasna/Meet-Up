@@ -75,8 +75,6 @@ public class LastTrainService {
 
         String dayType = todayDayType();
         List<Map<String, String>> stations = findStations(stationName);
-        // 같은 이름의 역이 여러 노선에 존재하면 요청 노선과 맞는 역부터 조회해
-        // 불필요한 시간표 API 호출을 줄인다.
         String requestedLine = subwayLineNumber(normalize(routeText));
         if (!requestedLine.isBlank() && !stations.isEmpty()) {
             List<Map<String, String>> matchingStations = stations.stream()
@@ -160,7 +158,6 @@ public class LastTrainService {
             }
         }
 
-        // API 키 오류나 일시적인 API 응답으로 빈 결과가 나와도 장시간 캐시하지 않는다.
         if (!stations.isEmpty()) redisCacheService.put(key, stations, STATION_CACHE_TTL);
         return stations;
     }
@@ -185,15 +182,13 @@ public class LastTrainService {
             for (JsonNode item : items) schedules.add(objectMapper.convertValue(item, new TypeReference<Map<String, Object>>() {}));
         }
 
-        // 시간표가 비어 있는 응답은 재조회할 수 있도록 캐시하지 않는다.
         if (!schedules.isEmpty()) redisCacheService.put(key, schedules, SCHEDULE_CACHE_TTL);
         return schedules;
     }
 
     private String todayDayType() {
         return switch (LocalDate.now().getDayOfWeek()) {
-            case SATURDAY -> "02";
-            case SUNDAY -> "03";
+            case SATURDAY, SUNDAY -> "03";
             default -> "01";
         };
     }
@@ -205,8 +200,6 @@ public class LastTrainService {
         String schedule = normalize(scheduleRoute);
         String station = normalize(stationRoute);
 
-        // 노선 API마다 "2호선" / "수도권2호선"처럼 표기가 다를 수 있어,
-        // 노선 번호가 명확하면 번호를 우선 비교한다.
         String targetLine = subwayLineNumber(target);
         String scheduleLine = subwayLineNumber(schedule);
         String stationLine = subwayLineNumber(station);
@@ -248,8 +241,6 @@ public class LastTrainService {
         if (!isValidTime(value)) return -1;
         int hour = Integer.parseInt(value.substring(0, 2));
         int minute = Integer.parseInt(value.substring(2, 4));
-        // 서울 지하철 시간표에서 00:00~03:59는 당일 밤 운행의 익일 막차로 취급한다.
-        // API가 24:xx로 반환하든 00:xx로 반환하든 비교 기준을 통일한다.
         if (hour < 4) hour += 24;
         return hour * 60 + minute;
     }
