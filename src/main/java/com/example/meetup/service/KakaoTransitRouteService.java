@@ -13,7 +13,6 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -24,7 +23,6 @@ import java.util.Map;
 public class KakaoTransitRouteService {
 
     private static final System.Logger LOGGER = System.getLogger(KakaoTransitRouteService.class.getName());
-    private static final Duration ROUTE_CACHE_TTL = Duration.ofMinutes(10);
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
 
     @Value("${kakao.rest-api-key}")
@@ -100,7 +98,9 @@ public class KakaoTransitRouteService {
         result.put("message", "약속장소에서 출발지까지의 대중교통 경로를 조회했습니다.");
 
         if (!routeList.isEmpty()) {
-            redisCacheService.put(cacheKey, result, ROUTE_CACHE_TTL);
+            // 경로 캐시는 TTL 없이 유지한다. 출발지/약속장소 좌표가 바뀌면
+            // versionedKey가 달라져 자연스럽게 새로운 경로를 조회한다.
+            redisCacheService.put(cacheKey, result, null);
         } else {
             redisCacheService.delete(cacheKey);
         }
