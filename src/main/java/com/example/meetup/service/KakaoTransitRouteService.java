@@ -44,7 +44,7 @@ public class KakaoTransitRouteService {
             boolean refresh) {
 
         String cacheKey = redisCacheService.versionedKey(
-                "transit:route",
+                "transit:route:v3",
                 coordinate(meetingLatitude), coordinate(meetingLongitude),
                 coordinate(originLatitude), coordinate(originLongitude));
 
