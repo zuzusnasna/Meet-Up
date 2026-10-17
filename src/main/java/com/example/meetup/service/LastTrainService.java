@@ -110,7 +110,7 @@ public class LastTrainService {
         if (!schedules.isEmpty()) redisCacheService.put(key, schedules, SCHEDULE_CACHE_TTL); return schedules;
     }
 
-    private String todayDayType() { return switch (LocalDate.now().getDayOfWeek()) { case SATURDAY -> "02"; case SUNDAY -> "03"; default -> "01"; }; }
+    private String todayDayType() { return switch (LocalDate.now().getDayOfWeek()) { case SATURDAY, SUNDAY -> "03"; default -> "01"; }; }
     private boolean routeMatches(String vehicleText, String scheduleRoute, String stationRoute) { if (vehicleText == null || vehicleText.isBlank()) return true; String target = normalize(vehicleText), schedule = normalize(scheduleRoute), station = normalize(stationRoute); String targetLine = subwayLineNumber(target), scheduleLine = subwayLineNumber(schedule), stationLine = subwayLineNumber(station); if (!targetLine.isBlank()) { if (!scheduleLine.isBlank()) return targetLine.equals(scheduleLine); if (!stationLine.isBlank()) return targetLine.equals(stationLine); } return (!schedule.isBlank() && (target.contains(schedule) || schedule.contains(target))) || (!station.isBlank() && (target.contains(station) || station.contains(target))) || (schedule.isBlank() && station.isBlank()); }
     private String subwayLineNumber(String value) { if (value == null || value.isBlank()) return ""; java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("(\\d{1,2})호선").matcher(value); return matcher.find() ? matcher.group(1) : ""; }
     private String normalizeTime(String value) { if (value == null) return ""; String digits = value.trim().replaceAll("[^0-9]", ""); if (digits.matches("\\d{4}")) return digits + "00"; if (digits.matches("\\d{6}")) return digits; return ""; }
