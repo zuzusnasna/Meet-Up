@@ -50,13 +50,8 @@ public class KakaoTransitRouteService {
                 coordinate(meetingLatitude), coordinate(meetingLongitude),
                 coordinate(originLatitude), coordinate(originLongitude));
 
-        if (!refresh) {
-            Map<String, Object> cached = redisCacheService.get(cacheKey, MAP_TYPE);
-            if (hasUsableRoutes(cached)) return cached;
-        } else {
-            // 사용자가 새로고침을 눌렀을 때는 최신 카카오 경로를 다시 조회한다.
-            redisCacheService.delete(cacheKey);
-        }
+        Map<String, Object> cached = redisCacheService.get(cacheKey, MAP_TYPE);
+        if (hasUsableRoutes(cached)) return cached;
 
         JsonNode root = requestRoutes(meetingLongitude, meetingLatitude, originLongitude, originLatitude);
         Map<String, Object> result = new LinkedHashMap<>();
@@ -84,22 +79,7 @@ public class KakaoTransitRouteService {
             JsonNode steps = routeNode.path("steps");
             if (steps.isArray()) {
                 for (JsonNode step : steps) {
-                    Map<String, Object> segment = parseSegment(step);
-                    if ("SUBWAY".equalsIgnoreCase(String.valueOf(segment.get("type")))) {
-                        try {
-                            segment.put("lastTrain", lastTrainService.findLastTrainForRoute(List.of(segment)));
-                        } catch (Exception e) {
-                            LOGGER.log(System.Logger.Level.WARNING,
-                                    "Subway last-train lookup failed. stops=" + segment.get("stops")
-                                            + ", vehicles=" + segment.get("vehicles"), e);
-                            Map<String, Object> lastTrainError = new LinkedHashMap<>();
-                            lastTrainError.put("status", "ERROR");
-                            lastTrainError.put("message", "막차 조회 오류: " + safeErrorMessage(e));
-                            lastTrainError.put("lastDeparture", null);
-                            segment.put("lastTrain", lastTrainError);
-                        }
-                    }
-                    segments.add(segment);
+                    segments.add(parseSegment(step));
                 }
             }
             route.put("segments", segments);
@@ -125,17 +105,6 @@ public class KakaoTransitRouteService {
             redisCacheService.delete(cacheKey);
         }
         return result;
-    }
-
-    private String safeErrorMessage(Exception error) {
-        Throwable cause = error;
-        while (cause.getCause() != null && cause.getCause() != cause) cause = cause.getCause();
-        String message = cause.getMessage();
-        if (message == null || message.isBlank()) message = error.getMessage();
-        if (message == null || message.isBlank()) return "서버 로그를 확인해 주세요.";
-        // 응답 본문에 키 등 민감정보가 섞여도 화면에 노출하지 않도록 길이와 민감한 패턴을 제한한다.
-        message = message.replaceAll("(?i)(serviceKey=)[^&\\s]+", "$1[hidden]");
-        return message.length() > 180 ? message.substring(0, 180) : message;
     }
 
     private boolean hasUsableRoutes(Map<String, Object> cached) {
