@@ -6,7 +6,8 @@ public record TransitBatchRequest(
         double meetingLatitude,
         double meetingLongitude,
         List<Origin> origins,
-        boolean refresh
+        boolean refresh,
+        String mode
 ) {
     public record Origin(
             Long userId,
