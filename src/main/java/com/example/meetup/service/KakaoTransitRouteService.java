@@ -44,12 +44,13 @@ public class KakaoTransitRouteService {
             boolean refresh) {
 
         String cacheKey = redisCacheService.versionedKey(
-                "transit:route:v3",
+                "transit:route:v4",
                 coordinate(meetingLatitude), coordinate(meetingLongitude),
                 coordinate(originLatitude), coordinate(originLongitude));
 
         Map<String, Object> cached = redisCacheService.get(cacheKey, MAP_TYPE);
         if (hasUsableRoutes(cached)) return cached;
+        if (cached != null) redisCacheService.delete(cacheKey);
 
         JsonNode root = requestRoutes(meetingLongitude, meetingLatitude, originLongitude, originLatitude);
         Map<String, Object> result = new LinkedHashMap<>();
@@ -90,6 +91,7 @@ public class KakaoTransitRouteService {
                 lastTrainError.put("message", "이 경로의 막차 정보를 조회하지 못했습니다.");
                 lastTrainError.put("lastDeparture", null);
                 route.put("lastTrain", lastTrainError);
+                LOGGER.log(System.Logger.Level.WARNING, "last-train lookup failed", e);
             }
             routeList.add(route);
         }
@@ -107,8 +109,25 @@ public class KakaoTransitRouteService {
 
     private boolean hasUsableRoutes(Map<String, Object> cached) {
         if (cached == null) return false;
-        Object routes = cached.get("routes");
-        return routes instanceof java.util.Collection<?> collection && !collection.isEmpty();
+        Object routesValue = cached.get("routes");
+        if (!(routesValue instanceof List<?> routes) || routes.isEmpty()) return false;
+
+        for (Object routeValue : routes) {
+            if (!(routeValue instanceof Map<?, ?> route)) continue;
+            Object segmentsValue = route.get("segments");
+            if (!(segmentsValue instanceof List<?> segments)) continue;
+
+            boolean hasSubway = segments.stream().anyMatch(segment -> segment instanceof Map<?, ?> map
+                    && "SUBWAY".equalsIgnoreCase(String.valueOf(map.get("type"))));
+            if (!hasSubway) continue;
+
+            Object lastTrainValue = route.get("lastTrain");
+            if (!(lastTrainValue instanceof Map<?, ?> lastTrain)
+                    || !"OK".equals(String.valueOf(lastTrain.get("status")))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private boolean shouldCacheResult(List<Map<String, Object>> routes) {
