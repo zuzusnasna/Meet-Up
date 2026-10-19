@@ -97,11 +97,9 @@ public class KakaoTransitRouteService {
         result.put("routes", routeList);
         result.put("message", "약속장소에서 출발지까지의 대중교통 경로를 조회했습니다.");
 
-        if (!routeList.isEmpty()) {
-            // 경로 캐시는 TTL 없이 유지한다. 출발지/약속장소 좌표가 바뀌면
-            // versionedKey가 달라져 자연스럽게 새로운 경로를 조회한다.
+        if (!routeList.isEmpty() && shouldCacheResult(routeList)) {
             redisCacheService.put(cacheKey, result, null);
-        } else {
+        } else if (routeList.isEmpty()) {
             redisCacheService.delete(cacheKey);
         }
         return result;
@@ -111,6 +109,21 @@ public class KakaoTransitRouteService {
         if (cached == null) return false;
         Object routes = cached.get("routes");
         return routes instanceof java.util.Collection<?> collection && !collection.isEmpty();
+    }
+
+    private boolean shouldCacheResult(List<Map<String, Object>> routes) {
+        for (Map<String, Object> route : routes) {
+            Object segmentsValue = route.get("segments");
+            if (!(segmentsValue instanceof List<?> segments)) continue;
+            boolean hasSubway = segments.stream().anyMatch(segment -> segment instanceof Map<?, ?> map
+                    && "SUBWAY".equalsIgnoreCase(String.valueOf(map.get("type"))));
+            if (!hasSubway) continue;
+
+            Object lastTrainValue = route.get("lastTrain");
+            if (!(lastTrainValue instanceof Map<?, ?> lastTrain)) return false;
+            if (!"OK".equals(String.valueOf(lastTrain.get("status")))) return false;
+        }
+        return true;
     }
 
     private Map<String, Object> parseSegment(JsonNode step) {
