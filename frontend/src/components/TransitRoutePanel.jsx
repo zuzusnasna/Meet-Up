@@ -94,11 +94,11 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
   };
 
   const normalizeGuidance = (value) => {
-    let text = String(value || "").replace(/\\s+/g, " ").trim();
+    let text = String(value || "").replace(/\s+/g, " ").trim();
     // 지도 안내에 장소명이 연속으로 붙는 케이스(예: 종로2가종로2가정류장)를 정리한다.
-    text = text.replace(/([가-힣0-9]+)\\1(?=(?:정류장|역|까지))/g, "$1");
-    text = text.replace(/([가-힣0-9]+)\\1(?=정류장)/g, "$1");
-    return text.replace(/\\s+/g, " ").trim();
+    text = text.replace(/([가-힣0-9]+)\1(?=(?:정류장|역|까지))/g, "$1");
+    text = text.replace(/([가-힣0-9]+)\1(?=정류장)/g, "$1");
+    return text.replace(/\s+/g, " ").trim();
   };
 
   const normalizeStationName = (value) => String(value || "")
