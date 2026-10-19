@@ -14,7 +14,7 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
     setHoveredSegment(null);
   }, [finalPlace?.placeId, finalPlace?.latitude, finalPlace?.longitude]);
 
-  const refreshRoutes = async () => {
+  const loadRoutes = async (mode = sortMode, refresh = false) => {
     if (finalPlace?.latitude == null || finalPlace?.longitude == null) return;
     const origins = participants
       .map((participant) => ({
@@ -22,6 +22,8 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
         location: locations.find((item) => Number(item.userId) === Number(participant.userId)),
       }))
       .filter(({ location }) => location?.latitude != null && location?.longitude != null);
+
+    if (origins.length === 0) return;
 
     setLoading(true);
     setPinnedSegment(null);
@@ -34,7 +36,8 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
         body: JSON.stringify({
           meetingLatitude: Number(finalPlace.latitude),
           meetingLongitude: Number(finalPlace.longitude),
-          refresh: true,
+          refresh,
+          mode,
           origins: origins.map(({ participant, location }) => ({
             userId: Number(participant.userId),
             latitude: Number(location.latitude),
@@ -51,9 +54,7 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
         const raw = data[String(participant.userId)] || {};
         normalized[participant.userId] = {
           ...raw,
-          routes: (Array.isArray(raw.routes) ? raw.routes : []).filter(
-            (route) => Number(route.transferCount) > 0,
-          ),
+          routes: Array.isArray(raw.routes) ? raw.routes : [],
         };
       }
       setRouteResults(normalized);
@@ -65,18 +66,10 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
     }
   };
 
-  // 정렬은 새 API를 다시 호출하지 않고, 이미 받아온 전체 후보 경로에서 수행합니다.
-  const sortRoutes = (routes) => [...routes]
-    .sort((a, b) => {
-      const timeA = Number(a.totalTimeSeconds ?? Number.MAX_SAFE_INTEGER);
-      const timeB = Number(b.totalTimeSeconds ?? Number.MAX_SAFE_INTEGER);
-      const transferA = Number(a.transferCount ?? Number.MAX_SAFE_INTEGER);
-      const transferB = Number(b.transferCount ?? Number.MAX_SAFE_INTEGER);
-
-      if (sortMode === "transfers" && transferA !== transferB) return transferA - transferB;
-      return timeA - timeB;
-    })
-    .slice(0, 3);
+  useEffect(() => {
+    if (!finalPlace || participants.length === 0 || locations.length === 0) return;
+    loadRoutes(sortMode, false);
+  }, [sortMode, finalPlace?.placeId, finalPlace?.latitude, finalPlace?.longitude, participants.length, locations.length]);
 
   const routeUrl = (location) => !location || !finalPlace
     ? null
@@ -205,7 +198,7 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
           <button
             type="button"
             className="transit-routes-refresh"
-            onClick={(event) => { event.preventDefault(); event.stopPropagation(); refreshRoutes(); }}
+            onClick={(event) => { event.preventDefault(); event.stopPropagation(); loadRoutes(sortMode, true); }}
             disabled={loading || finalPlace?.latitude == null || finalPlace?.longitude == null}
           >
             {loading ? "조회 중..." : "↻ 경로 새로고침"}
@@ -223,24 +216,24 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
       {participants.length === 0 ? (
         <div className="transit-routes-empty">참여자 정보를 불러오지 못했습니다.</div>
       ) : Object.keys(routeResults).length === 0 && !loading ? (
-        <div className="transit-routes-empty">현재 가능한 귀가 경로를 확인하려면 새로고침 버튼을 눌러주세요.</div>
+        <div className="transit-routes-empty">현재 가능한 귀가 경로가 없습니다.</div>
       ) : (
         <div className="transit-routes-list">
           <div className="transit-routes-toolbar">
             <div>
-              <strong>경로 정렬</strong>
-              <span>조회된 경로에서 표시 순서만 변경합니다.</span>
+              <strong>경로 기준</strong>
+              <span>{sortMode === "time" ? "최단 시간 기준으로 별도 조회" : "최소 환승 기준으로 별도 조회 · 같은 환승 수는 최단 시간 순"}</span>
             </div>
-            <div className="transit-routes-sort" role="tablist" aria-label="귀가 경로 정렬 기준">
-              <button type="button" className={sortMode === "time" ? "is-active" : ""} onClick={() => setSortMode("time")}>최단 시간</button>
-              <button type="button" className={sortMode === "transfers" ? "is-active" : ""} onClick={() => setSortMode("transfers")}>최소 환승</button>
+            <div className="transit-routes-sort" role="tablist" aria-label="귀가 경로 조회 기준">
+              <button type="button" className={sortMode === "time" ? "is-active" : ""} onClick={() => setSortMode("time")} disabled={loading}>최단 시간</button>
+              <button type="button" className={sortMode === "transfers" ? "is-active" : ""} onClick={() => setSortMode("transfers")} disabled={loading}>최소 환승</button>
             </div>
           </div>
 
           {participants.map((participant) => {
             const location = locations.find((item) => Number(item.userId) === Number(participant.userId));
             const result = routeResults[participant.userId];
-            const routes = sortRoutes(Array.isArray(result?.routes) ? result.routes : []);
+            const routes = Array.isArray(result?.routes) ? result.routes : [];
             const url = routeUrl(location);
 
             return (
