@@ -48,9 +48,13 @@ public class KakaoTransitRouteService {
                 coordinate(meetingLatitude), coordinate(meetingLongitude),
                 coordinate(originLatitude), coordinate(originLongitude));
 
-        Map<String, Object> cached = redisCacheService.get(cacheKey, MAP_TYPE);
-        if (hasUsableRoutes(cached)) return cached;
-        if (cached != null) redisCacheService.delete(cacheKey);
+        if (!refresh) {
+            Map<String, Object> cached = redisCacheService.get(cacheKey, MAP_TYPE);
+            if (hasUsableRoutes(cached)) return cached;
+            if (cached != null) redisCacheService.delete(cacheKey);
+        } else {
+            redisCacheService.delete(cacheKey);
+        }
 
         JsonNode root = requestRoutes(meetingLongitude, meetingLatitude, originLongitude, originLatitude);
         Map<String, Object> result = new LinkedHashMap<>();
