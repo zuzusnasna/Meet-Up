@@ -106,8 +106,6 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
     return text.replace(/\s+/g, " ").trim();
   };
 
-  // 역명에 붙은 호선/역/정류장 표기와 장소 검색용 괄호 설명을 제거해 같은 역인지 비교한다.
-  // 예: "종로3가역 1호선", "종로3가 5호선", "종로3가(탑골공원)" -> 모두 "종로3가"
   const normalizeStationName = (value) => String(value || "")
     .replace(/\([^)]*\)/g, "")
     .replace(/\s+/g, "")
@@ -235,7 +233,7 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
                       return <div className={`transit-routes-segment ${getSegmentClass(segment)}${isPinned ? " is-pinned" : ""}${isBusTransfer ? " is-bus-transfer" : ""}`} key={segmentIndex} tabIndex="0" onMouseEnter={() => setHoveredSegment(segmentKey)} onMouseLeave={() => setHoveredSegment(null)} onClick={(event) => { event.stopPropagation(); setPinnedSegment(isPinned ? null : segmentKey); }}>
                         <div className="transit-routes-line" /><div className="transit-routes-label"><span>{modeLabel(segment.type)}</span><strong>{formatDuration(segment.timeSeconds)}</strong></div>
                         {["WALKING", "WALK", "FOOT"].includes(String(segment.type).toUpperCase()) && segment.guidance && <div className="transit-routes-walking-guidance">{normalizeGuidance(segment.guidance)}</div>}
-                        {segment.type === "SUBWAY" && <div className="transit-routes-segment-last-train">{formatLastTrain(segment.lastTrain) ? <>막차 <strong>{formatLastTrain(segment.lastTrain)}</strong></> : (segment.lastTrain?.message || "막차 정보 없음")}</div>}
+                        {segment.type === "SUBWAY" && <div className="transit-routes-segment-last-train">{formatLastTrain(route.lastTrain) ? <>막차 <strong>{formatLastTrain(route.lastTrain)}</strong></> : (route.lastTrain?.message || "막차 정보 없음")}</div>}
                         {busInfo.length > 0 && <div className="transit-routes-bus-numbers" aria-label="이용 가능한 버스 번호">{busInfo.map((bus, index) => <span className={`transit-routes-bus-${bus.kind}`} key={`${bus.number}-${index}`}>{bus.number}</span>)}</div>}
                         {isBusTransfer && <span className="transit-routes-transfer-badge">버스 환승</span>}
                         {isActive && <div className="transit-routes-tooltip"><strong>{modeLabel(segment.type)} · {formatDuration(segment.timeSeconds)}</strong>{segment.guidance && <p>{normalizeGuidance(segment.guidance)}</p>}{segment.stops?.length > 0 && <div className="transit-routes-stops">{segment.stops.map((stop, index) => <span key={`${stop}-${index}`}>{stop}</span>)}</div>}</div>}
