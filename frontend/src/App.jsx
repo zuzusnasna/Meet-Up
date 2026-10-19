@@ -1137,22 +1137,22 @@ function App() {
         </button>
         <button
           type="button"
-          className={"top-nav-link" + (activeTab === "settlement" ? " active" : "")}
-          onClick={() => setActiveTab("settlement")}
-          aria-current={activeTab === "settlement" ? "page" : undefined}
-        >
-          정산하기
-        </button>
-        <button
-          type="button"
           className={"top-nav-link" + (activeTab === "transitRoutes" ? " active" : "")}
           onClick={() => finalPlace && setActiveTab("transitRoutes")}
           disabled={!finalPlace}
           aria-disabled={!finalPlace}
           aria-current={activeTab === "transitRoutes" ? "page" : undefined}
-          title={!finalPlace ? "최종 약속장소를 먼저 정해주세요." : "참여자별 환승 경로 확인"}
+          title={!finalPlace ? "최종 약속장소를 먼저 정해주세요." : "참여자별 귀가 경로 확인"}
         >
-          환승 경로
+          귀가 경로
+        </button>
+        <button
+          type="button"
+          className={"top-nav-link" + (activeTab === "settlement" ? " active" : "")}
+          onClick={() => setActiveTab("settlement")}
+          aria-current={activeTab === "settlement" ? "page" : undefined}
+        >
+          정산하기
         </button>
       </nav>
 
