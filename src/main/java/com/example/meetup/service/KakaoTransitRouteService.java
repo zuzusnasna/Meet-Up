@@ -14,6 +14,7 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,6 +25,8 @@ public class KakaoTransitRouteService {
 
     private static final System.Logger LOGGER = System.getLogger(KakaoTransitRouteService.class.getName());
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
+    private static final String MODE_TIME = "time";
+    private static final String MODE_TRANSFERS = "transfers";
 
     @Value("${kakao.rest-api-key}")
     private String restApiKey;
@@ -35,16 +38,25 @@ public class KakaoTransitRouteService {
     public Map<String, Object> findReturnRoutes(
             double meetingLatitude, double meetingLongitude,
             double originLatitude, double originLongitude) {
-        return findReturnRoutes(meetingLatitude, meetingLongitude, originLatitude, originLongitude, false);
+        return findReturnRoutes(meetingLatitude, meetingLongitude, originLatitude, originLongitude, false, MODE_TIME);
     }
 
     public Map<String, Object> findReturnRoutes(
             double meetingLatitude, double meetingLongitude,
             double originLatitude, double originLongitude,
             boolean refresh) {
+        return findReturnRoutes(meetingLatitude, meetingLongitude, originLatitude, originLongitude, refresh, MODE_TIME);
+    }
 
+    public Map<String, Object> findReturnRoutes(
+            double meetingLatitude, double meetingLongitude,
+            double originLatitude, double originLongitude,
+            boolean refresh, String mode) {
+
+        String normalizedMode = MODE_TRANSFERS.equalsIgnoreCase(mode) ? MODE_TRANSFERS : MODE_TIME;
         String cacheKey = redisCacheService.versionedKey(
-                "transit:route:v4",
+                "transit:route:v5",
+                normalizedMode,
                 coordinate(meetingLatitude), coordinate(meetingLongitude),
                 coordinate(originLatitude), coordinate(originLongitude));
 
@@ -56,10 +68,12 @@ public class KakaoTransitRouteService {
             redisCacheService.delete(cacheKey);
         }
 
+        // 정렬 기준을 바꿀 때도 카카오 API를 다시 호출한다. 모드별 캐시는 별도로 유지한다.
         JsonNode root = requestRoutes(meetingLongitude, meetingLatitude, originLongitude, originLatitude);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("origin", point("사용자 출발지", originLatitude, originLongitude));
         result.put("meetingPlace", point("약속장소", meetingLatitude, meetingLongitude));
+        result.put("mode", normalizedMode);
 
         JsonNode routes = root.path("routes");
         List<Map<String, Object>> routeList = new ArrayList<>();
@@ -100,8 +114,25 @@ public class KakaoTransitRouteService {
             routeList.add(route);
         }
 
+        // 두 기준 모두 '환승이 필요한 경로'만 대상으로 한다.
+        routeList.removeIf(route -> number(route.get("transferCount")) <= 0);
+        if (MODE_TRANSFERS.equals(normalizedMode)) {
+            // 최소 환승 수를 우선하고, 같은 환승 수 안에서는 최단 시간을 우선한다.
+            routeList.sort(Comparator
+                    .comparingInt((Map<String, Object> route) -> number(route.get("transferCount")))
+                    .thenComparingInt(route -> number(route.get("totalTimeSeconds"))));
+        } else {
+            // 최단 시간 기준은 별도로 계산한다.
+            routeList.sort(Comparator.comparingInt(route -> number(route.get("totalTimeSeconds"))));
+        }
+        if (routeList.size() > 3) {
+            routeList = new ArrayList<>(routeList.subList(0, 3));
+        }
+
         result.put("routes", routeList);
-        result.put("message", "약속장소에서 출발지까지의 대중교통 경로를 조회했습니다.");
+        result.put("message", MODE_TRANSFERS.equals(normalizedMode)
+                ? "최소 환승 기준으로 귀가 경로를 조회했습니다."
+                : "최단 시간 기준으로 귀가 경로를 조회했습니다.");
 
         if (!routeList.isEmpty() && shouldCacheResult(routeList)) {
             redisCacheService.put(cacheKey, result, null);
@@ -253,6 +284,15 @@ public class KakaoTransitRouteService {
     private int number(JsonNode node, String field) {
         JsonNode value = node == null ? null : node.get(field);
         return value == null || value.isNull() ? 0 : value.asInt(0);
+    }
+
+    private int number(Object value) {
+        if (value instanceof Number number) return number.intValue();
+        try {
+            return Integer.parseInt(String.valueOf(value));
+        } catch (Exception ignored) {
+            return Integer.MAX_VALUE;
+        }
     }
 
     private String encode(String value) {
