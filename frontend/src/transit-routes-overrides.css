@@ -1,1 +1,80 @@
-.transit-routes-heading{align-items:center;background:var(--surface);box-shadow:none;border-radius:12px;padding:18px 20px}.transit-routes-heading-copy h2{margin:4px 0 0;font-size:24px;letter-spacing:-.03em}.transit-routes-heading-actions{align-items:center}.transit-routes-destination{background:transparent;border-left:1px solid var(--line);border-radius:0;padding:4px 0 4px 16px}.transit-routes-refresh{min-height:40px;padding:9px 14px;border-radius:9px;font-size:12px}.transit-routes-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:2px 0 12px;padding:2px 0}.transit-routes-toolbar>div:first-child{display:flex;align-items:baseline;gap:9px}.transit-routes-toolbar strong{font-size:14px;color:var(--text)}.transit-routes-toolbar span{font-size:11px;color:var(--muted)}.transit-routes-sort{display:inline-flex;align-items:center;padding:3px;border:1px solid var(--line);border-radius:10px;background:var(--surface-soft)}.transit-routes-sort button{border:0;background:transparent;color:var(--muted);padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}.transit-routes-sort button.is-active{background:var(--surface);color:var(--text);box-shadow:0 1px 4px rgba(25,31,52,.08)}.transit-routes-card{box-shadow:none;border-radius:12px;padding:18px}.transit-routes-person{margin-bottom:14px}.transit-routes-option{padding-top:12px}.transit-routes-meta a{font-weight:600}.transit-routes-loading{padding:14px 0}.transit-routes-empty{padding:18px 8px}.top-nav{display:flex;align-items:center}.top-nav-link:nth-child(2){order:3}.top-nav-link:nth-child(3){order:2;color:transparent!important}.top-nav-link:nth-child(3)::after{content:"귀가 경로";color:var(--text)}.top-nav-link:nth-child(3):hover::after,.top-nav-link:nth-child(3).active::after{color:var(--text)}@media(max-width:760px){.transit-routes-heading{align-items:stretch;padding:16px}.transit-routes-heading-actions{align-items:stretch;flex-direction:column}.transit-routes-refresh{width:100%;min-height:42px}.transit-routes-destination{border-left:0;border-top:1px solid var(--line);padding:10px 0 0;max-width:none;width:100%}.transit-routes-toolbar{align-items:stretch;flex-direction:column;gap:10px}.transit-routes-toolbar>div:first-child{justify-content:space-between}.transit-routes-sort{width:100%}.transit-routes-sort button{flex:1;text-align:center}.transit-routes-card{padding:15px}.transit-routes-summary{align-items:flex-start}.transit-routes-summary span{font-size:11px;text-align:right}.transit-routes-horizontal{margin-top:14px;padding-bottom:18px}.transit-routes-track{min-height:108px;padding-bottom:8px}.transit-routes-segment{height:108px;min-width:82px}.transit-routes-tooltip{width:min(280px,calc(100vw - 40px));left:50%;}.transit-routes-meta{line-height:1.7}}
+.transit-routes-page{padding:18px 0 32px;color:var(--text)}
+
+/* navigation: natural button width + requested order */
+.top-nav{display:flex;align-items:center;gap:0}
+.top-nav-link:nth-child(2){order:3}
+.top-nav-link:nth-child(3){order:2;font-size:0}
+.top-nav-link:nth-child(3)::after{content:"귀가 경로";font-size:14px;color:currentColor}
+
+/* simple page header */
+.transit-routes-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:26px;padding:0 2px;border:0;border-radius:0;background:transparent;box-shadow:none}
+.transit-routes-heading-copy h2{margin:0;font-size:25px;font-weight:750;letter-spacing:-.045em}
+.transit-routes-eyebrow{display:none}
+.transit-routes-heading-actions{display:flex;align-items:center;gap:18px}
+.transit-routes-refresh{min-height:38px;padding:8px 13px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--text);font-size:12px;font-weight:700;box-shadow:none}
+.transit-routes-refresh:hover:not(:disabled){background:var(--surface-soft);filter:none}
+.transit-routes-destination{min-width:0;max-width:300px;padding:0 0 0 18px;border:0;border-left:1px solid var(--line);border-radius:0;background:transparent;gap:3px}
+.transit-routes-destination span,.transit-routes-destination small{font-size:11px;color:var(--muted)}
+.transit-routes-destination strong{font-size:14px;font-weight:700}
+
+/* no explanatory panel: only two compact choices */
+.transit-routes-toolbar{display:flex;align-items:center;justify-content:flex-end;margin:0 0 18px;padding:0;border:0}
+.transit-routes-toolbar>div:first-child{display:none}
+.transit-routes-sort{display:inline-flex;align-items:center;padding:2px;border:1px solid var(--line);border-radius:7px;background:var(--surface-soft)}
+.transit-routes-sort button{border:0;border-radius:5px;background:transparent;color:var(--muted);padding:7px 15px;font-size:12px;font-weight:700;line-height:1;cursor:pointer;white-space:nowrap;box-shadow:none}
+.transit-routes-sort button.is-active{background:var(--surface);color:var(--text);box-shadow:0 1px 2px rgba(25,31,52,.08)}
+.transit-routes-sort button:disabled{cursor:default;opacity:.55}
+
+/* participant sections instead of floating cards */
+.transit-routes-list{gap:0;border-top:1px solid var(--line)}
+.transit-routes-card{padding:22px 2px 28px;border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent;box-shadow:none}
+.transit-routes-person{gap:0;margin-bottom:17px;padding-bottom:11px;border-bottom:1px solid var(--line)}
+.transit-routes-avatar{display:none}
+.transit-routes-person div{gap:3px}
+.transit-routes-person strong{font-size:15px;font-weight:750}
+.transit-routes-person span{font-size:11px}
+.transit-routes-option{padding-top:15px;border-top:0}
+.transit-routes-option+.transit-routes-option{margin-top:4px;border-top:1px solid var(--line);padding-top:20px}
+.transit-routes-summary{align-items:baseline;font-size:12px}
+.transit-routes-summary strong{font-size:13px}
+.transit-routes-summary span{font-size:11px}
+
+/* route itself: flatter and quieter */
+.transit-routes-horizontal{grid-template-columns:minmax(105px,150px) minmax(0,1fr) minmax(105px,150px);margin-top:13px;padding:8px 0 22px}
+.transit-routes-endpoint-label{font-size:9px;text-transform:none;letter-spacing:0}
+.transit-routes-endpoint strong{font-size:11px;font-weight:650}
+.transit-routes-track{min-height:106px;padding:3px 0 8px}
+.transit-routes-segment{height:106px;min-width:72px}
+.transit-routes-line{height:5px;top:49px}
+.transit-routes-segment+.transit-routes-segment::before{width:11px;height:11px;top:46px;border-width:2px;box-shadow:none}
+.transit-routes-segment:hover .transit-routes-line,.transit-routes-segment:focus-visible .transit-routes-line,.transit-routes-segment.is-pinned .transit-routes-line{height:7px;filter:none}
+.transit-routes-label{top:12px;font-size:10px}
+.transit-routes-label strong{font-size:10px}
+.transit-routes-bus-numbers{top:61px;font-size:9px}
+.transit-routes-segment-last-train{top:76px;font-size:8px}
+.transit-routes-segment-last-train strong{font-size:9px}
+.transit-routes-walking-guidance{top:78px;background:transparent;border:0;padding:0;font-size:9px}
+.transit-routes-transfer-badge{top:91px;padding:0;background:transparent;color:var(--muted);font-size:8px;box-shadow:none}
+.transit-routes-tooltip{width:260px;padding:11px 12px;border-radius:7px;box-shadow:0 8px 22px rgba(25,31,52,.12)}
+.transit-routes-meta{margin-top:0;text-align:right;font-size:10px}
+.transit-routes-meta a{font-weight:650}
+.transit-routes-loading,.transit-routes-empty{padding:28px 8px;color:var(--muted);font-size:12px;text-align:center}
+
+@media(max-width:760px){
+  .transit-routes-page{padding:14px 0 26px}
+  .transit-routes-heading{align-items:stretch;flex-direction:column;gap:14px;margin-bottom:20px}
+  .transit-routes-heading-actions{width:100%;align-items:stretch;flex-direction:column;gap:10px}
+  .transit-routes-refresh{width:100%;min-height:40px}
+  .transit-routes-destination{width:100%;max-width:none;padding:10px 0 0;border-top:1px solid var(--line);border-left:0}
+  .transit-routes-toolbar{justify-content:stretch;margin-bottom:14px}
+  .transit-routes-sort{width:100%}
+  .transit-routes-sort button{flex:1;text-align:center}
+  .transit-routes-card{padding:18px 0 24px}
+  .transit-routes-horizontal{grid-template-columns:1fr;gap:7px;margin-top:12px;padding-bottom:18px}
+  .transit-routes-endpoint:first-child{justify-content:flex-start;flex-direction:row}
+  .transit-routes-endpoint:last-child{padding-left:0}
+  .transit-routes-endpoint:last-child strong{max-width:none}
+  .transit-routes-track{width:100%;overflow-x:auto;overflow-y:visible}
+  .transit-routes-segment{min-width:86px}
+  .transit-routes-meta{text-align:left;line-height:1.7}
+}
