@@ -4,5 +4,6 @@ import "./style.css";
 import "./midpoint.css";
 import "./vote-finish.css";
 import "./transit-routes.css";
+import "./transit-routes-overrides.css";
 
 createRoot(document.getElementById("root")).render(<AppRouter />);
