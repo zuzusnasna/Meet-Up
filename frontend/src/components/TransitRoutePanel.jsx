@@ -210,7 +210,7 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
             {loading ? "경로 확인 중…" : "새로고침"}
           </button>
           <div className="transit-routes-destination">
-            <span>도착 장소</span>
+            <span>귀가 출발점</span>
             <strong>{finalPlace?.placeName || "미정"}</strong>
             <small>{finalPlace?.address || ""}</small>
           </div>
