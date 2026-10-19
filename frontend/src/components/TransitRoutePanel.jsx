@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import "../transit-routes.css";
+import "./TransitRoutePanel.css";
 
 export default function TransitRoutePanel({ finalPlace, participants = [], locations = [] }) {
   const [routeResults, setRouteResults] = useState({});
@@ -265,7 +265,7 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
                     <div className="transit-routes-itinerary">
                       <div className="transit-routes-itinerary-stop is-start">
                         <span className="transit-routes-stop-mark" />
-                        <div><small>출발</small><strong>{location?.address || "내 출발지"}</strong></div>
+                        <div><small>출발</small><strong>{finalPlace?.placeName || "최종 약속장소"}</strong></div>
                       </div>
                       <div className="transit-routes-itinerary-legs">
                         {getDisplaySegments(route).map((segment, segmentIndex, allSegments) => {
@@ -299,7 +299,7 @@ export default function TransitRoutePanel({ finalPlace, participants = [], locat
                       </div>
                       <div className="transit-routes-itinerary-stop is-end">
                         <span className="transit-routes-stop-mark" />
-                        <div><small>도착</small><strong>{finalPlace?.placeName || "약속장소"}</strong></div>
+                        <div><small>도착</small><strong>{location?.address || "내 출발지"}</strong></div>
                       </div>
                     </div>
 
